@@ -42,60 +42,60 @@
 /******************************************************************************/
 /********************** Macros and Constants Definitions **********************/
 /******************************************************************************/
-#define AD5766_CMD_NOP_MUX_OUT			0x00
-#define AD5766_CMD_SDO_CNTRL			0x01
-#define AD5766_CMD_WR_IN_REG(x)			(0x10 | ((x) & 0xF))
-#define AD5766_CMD_WR_DAC_REG(x)		(0x20 | ((x) & 0xF))
-#define AD5766_CMD_SW_LDAC				0x30
-#define AD5766_CMD_SPAN_REG				0x40
-#define AD5766_CMD_WR_PWR_DAC			0x50
-#define AD5766_CMD_WR_PWR_DITHER		0x51
-#define AD5766_CMD_WR_DAC_REG_ALL		0x60
-#define AD5766_CMD_SW_FULL_RESET		0x70
-#define AD5766_CMD_READBACK_REG(x)		(0x80 | ((x) & 0xF))
-#define AD5766_CMD_DITHER_SIG_1			0x90
-#define AD5766_CMD_DITHER_SIG_2			0xA0
-#define AD5766_CMD_INV_DITHER			0xB0
-#define AD5766_CMD_DITHER_SCALE_1		0xC0
-#define AD5766_CMD_DITHER_SCALE_2		0xD0
+#define AD5766_CMD_NOP_MUX_OUT		0x00
+#define AD5766_CMD_SDO_CNTRL		0x01
+#define AD5766_CMD_WR_IN_REG(x)		(0x10 | ((x) & 0xF))
+#define AD5766_CMD_WR_DAC_REG(x)	(0x20 | ((x) & 0xF))
+#define AD5766_CMD_SW_LDAC		0x30
+#define AD5766_CMD_SPAN_REG		0x40
+#define AD5766_CMD_WR_PWR_DAC		0x50
+#define AD5766_CMD_WR_PWR_DITHER	0x51
+#define AD5766_CMD_WR_DAC_REG_ALL	0x60
+#define AD5766_CMD_SW_FULL_RESET	0x70
+#define AD5766_CMD_READBACK_REG(x)	(0x80 | ((x) & 0xF))
+#define AD5766_CMD_DITHER_SIG_1		0x90
+#define AD5766_CMD_DITHER_SIG_2		0xA0
+#define AD5766_CMD_INV_DITHER		0xB0
+#define AD5766_CMD_DITHER_SCALE_1	0xC0
+#define AD5766_CMD_DITHER_SCALE_2	0xD0
 
 /* AD5766_CMD_SDO_CNTRL */
-#define AD5766_SDO_EN					(1 << 0)
+#define AD5766_SDO_EN			(1 << 0)
 
 /* AD5766_CMD_SW_LDAC */
-#define AD5766_LDAC(x)					(1 << ((x) & 0xF))
+#define AD5766_LDAC(x)			(1 << ((x) & 0xF))
 
 /* AD5766_CMD_SPAN_REG */
-#define AD5766_CFG_CLR(x)				(((x) & 0x3) << 3)
-#define AD5766_SPAN(x)					(((x) & 0x7) << 0)
+#define AD5766_CFG_CLR(x)		(((x) & 0x3) << 3)
+#define AD5766_SPAN(x)			(((x) & 0x7) << 0)
 
 /* AD5766_CMD_WR_PWR_DAC, AD5766_CMD_WR_PWR_DITHER */
-#define AD5766_PWDN(x)					(1 << ((x) & 0xF))
+#define AD5766_PWDN(x)			(1 << ((x) & 0xF))
 
 /* AD5766_CMD_SW_FULL_RESET */
-#define AD5766_RESET					0x1234
+#define AD5766_RESET			0x1234
 
 /* AD5766_CMD_DITHER_SIG_x */
-#define AD5766_N0(x)					(1 << (2 * ((x) & 0xF)))
-#define AD5766_N1(x)					(2 << (2 * ((x) & 0xF)))
+#define AD5766_N0(x)			(1 << (2 * ((x) & 0xF)))
+#define AD5766_N1(x)			(2 << (2 * ((x) & 0xF)))
 
 /* AD5766_CMD_INV_DITHER */
-#define AD5766_INV_D(x)					(1 << ((x) & 0xF))
+#define AD5766_INV_D(x)			(1 << ((x) & 0xF))
 
 /* AD5766_CMD_DITHER_SCALE_x */
-#define AD5766_75(x)					(1 << (2 * ((x) & 0xF)))
-#define AD5766_50(x)					(2 << (2 * ((x) & 0xF)))
-#define AD5766_25(x)					(3 << (2 * ((x) & 0xF)))
+#define AD5766_75(x)			(1 << (2 * ((x) & 0xF)))
+#define AD5766_50(x)			(2 << (2 * ((x) & 0xF)))
+#define AD5766_25(x)			(3 << (2 * ((x) & 0xF)))
 
 /******************************************************************************/
 /*************************** Types Declarations *******************************/
 /******************************************************************************/
-typedef enum {
+enum ad5766_state {
 	AD5766_ENABLE,
 	AD5766_DISABLE,
-} ad5766_state;
+};
 
-typedef enum {
+enum ad5766_dac {
 	AD5766_DAC_0,
 	AD5766_DAC_1,
 	AD5766_DAC_2,
@@ -112,9 +112,9 @@ typedef enum {
 	AD5766_DAC_13,
 	AD5766_DAC_14,
 	AD5766_DAC_15,
-} ad5766_dac;
+};
 
-typedef enum {
+enum ad5766_span {
 	AD5766_M_20V_TO_0V,
 	AD5766_M_16V_TO_0V,
 	AD5766_M_10V_TO_0V,
@@ -122,93 +122,89 @@ typedef enum {
 	AD5766_M_16V_TO_P_10V,
 	AD5766_M_5V_TO_P_6V,
 	AD5766_M_10V_TO_P_10V,
-} ad5766_span;
+};
 
-typedef enum {
+enum ad5766_clr {
 	AD5766_ZERO,
 	AD5766_MID,
 	AD5766_FULL,
-} ad5766_clr;
+};
 
-typedef struct {
+struct ad5766_dev {
 	/* SPI */
-	spi_device		spi_dev;
+	spi_desc		*spi_desc;
 	/* GPIO */
-	gpio_device		gpio_dev;
-	int8_t			gpio_reset;
+	gpio_desc		*gpio_reset;
 	/* Device Settings */
-	ad5766_state	daisy_chain_en;
-} ad5766_dev;
+	enum ad5766_state	daisy_chain_en;
+};
 
-typedef struct {
+struct ad5766_init_param {
 	/* SPI */
-	uint8_t			spi_chip_select;
-	spi_mode		spi_mode;
-	spi_type		spi_type;
-	uint32_t		spi_device_id;
+	spi_init_param	spi_init;
 	/* GPIO */
-	gpio_type		gpio_type;
-	uint32_t		gpio_device_id;
-	int8_t			gpio_reset;
+	int8_t		gpio_reset;
 	/* Device Settings */
-	ad5766_state	daisy_chain_en;
-	ad5766_clr		clr;
-	ad5766_span		span;
+	enum ad5766_state	daisy_chain_en;
+	enum ad5766_clr		clr;
+	enum ad5766_span	span;
 	uint16_t		pwr_dac_setting;
 	uint16_t		pwr_dither_setting;
 	uint32_t		dither_signal_setting;
 	uint16_t		inv_dither_setting;
 	uint32_t		dither_scale_setting;
-} ad5766_init_param;
+};
 
 /******************************************************************************/
 /************************ Functions Declarations ******************************/
 /******************************************************************************/
 /* SPI command write to device. */
-int32_t ad5766_spi_cmd_write(ad5766_dev *dev,
-							 uint8_t cmd,
-							 uint16_t data);
+int32_t ad5766_spi_cmd_write(struct ad5766_dev *dev,
+			     uint8_t cmd,
+			     uint16_t data);
 /* SPI readback register from device. */
-int32_t ad5766_spi_readback_reg(ad5766_dev *dev,
-								ad5766_dac dac,
-								uint32_t *data);
+int32_t ad5766_spi_readback_reg(struct ad5766_dev *dev,
+				enum ad5766_dac dac,
+				uint32_t *data);
 /* Set software LDAC for the selected channels. */
-int32_t ad5766_set_sw_ldac(ad5766_dev *dev,
-						   uint16_t setting);
+int32_t ad5766_set_sw_ldac(struct ad5766_dev *dev,
+			   uint16_t setting);
 /* Set clear code and span settings. */
-int32_t ad5766_set_clr_span(ad5766_dev *dev,
-							ad5766_clr clr,
-							ad5766_span span);
+int32_t ad5766_set_clr_span(struct ad5766_dev *dev,
+			    enum ad5766_clr clr,
+			    enum ad5766_span span);
 /* Power down the selected channels. */
-int32_t ad5766_set_pwr_dac(ad5766_dev *dev,
-						   uint16_t setting);
+int32_t ad5766_set_pwr_dac(struct ad5766_dev *dev,
+			   uint16_t setting);
 /* Power down the dither block for the selected channels. */
-int32_t ad5766_set_pwr_dither(ad5766_dev *dev,
-							  uint16_t setting);
+int32_t ad5766_set_pwr_dither(struct ad5766_dev *dev,
+			      uint16_t setting);
 /* Enable the dither signal for the selected channels. */
-int32_t ad5766_set_dither_signal(ad5766_dev *dev,
-								 uint32_t setting);
+int32_t ad5766_set_dither_signal(struct ad5766_dev *dev,
+				 uint32_t setting);
 /* Invert the dither signal for the selected channels. */
-int32_t ad5766_set_inv_dither(ad5766_dev *dev,
-							  uint16_t setting);
+int32_t ad5766_set_inv_dither(struct ad5766_dev *dev,
+			      uint16_t setting);
 /* Enable the dither scaling for the selected channels. */
-int32_t ad5766_set_dither_scale(ad5766_dev *dev,
-								uint32_t setting);
+int32_t ad5766_set_dither_scale(struct ad5766_dev *dev,
+				uint32_t setting);
 /* Do a software reset. */
-int32_t ad5766_do_soft_reset(ad5766_dev *dev);
+int32_t ad5766_do_soft_reset(struct ad5766_dev *dev);
 /* Set the input register for the selected channel. */
-int32_t ad5766_set_in_reg(ad5766_dev *dev,
-						  ad5766_dac dac,
-						  uint16_t data);
+int32_t ad5766_set_in_reg(struct ad5766_dev *dev,
+			  enum ad5766_dac dac,
+			  uint16_t data);
 /* Set the DAC register for the selected channel. */
-int32_t ad5766_set_dac_reg(ad5766_dev *dev,
-							  ad5766_dac dac,
-							  uint16_t data);
+int32_t ad5766_set_dac_reg(struct ad5766_dev *dev,
+			   enum ad5766_dac dac,
+			   uint16_t data);
 /* Set the DAC register for all channels. */
-int32_t ad5766_set_dac_reg_all(ad5766_dev *dev,
-							   ad5766_dac dac,
-							   uint16_t data);
+int32_t ad5766_set_dac_reg_all(struct ad5766_dev *dev,
+			       uint16_t data);
 /* Initialize the device. */
-int32_t ad5766_setup(ad5766_dev **device,
-					 ad5766_init_param init_param);
+int32_t ad5766_init(struct ad5766_dev **device,
+		    struct ad5766_init_param init_param);
+
+/* Free the resources allocated by ad5766_init(). */
+int32_t ad5766_remove(struct ad5766_dev *dev);
 #endif // AD5766_H_

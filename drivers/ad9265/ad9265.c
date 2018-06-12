@@ -40,6 +40,11 @@
 /******************************************************************************/
 /***************************** Include Files **********************************/
 /******************************************************************************/
+#include <stdio.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include "adc_core.h"
+#include "platform_drivers.h"
 #include "ad9265.h"
 
 #define DCO_DEBUG
@@ -47,18 +52,19 @@
 /***************************************************************************//**
 * @brief ad9265_spi_read
 *******************************************************************************/
-int32_t ad9265_spi_read(spi_device *dev,
-						uint16_t reg_addr,
-						uint8_t *reg_data)
+int32_t ad9265_spi_read(struct ad9265_dev *dev,
+			uint16_t reg_addr,
+			uint8_t *reg_data)
 {
 	uint8_t buf[3];
+
 	int32_t ret;
 
 	buf[0] = 0x80 | (reg_addr >> 8);
 	buf[1] = reg_addr & 0xFF;
 	buf[2] = 0x00;
 
-	ret = ad_spi_xfer(dev, buf, 3);
+	ret = spi_write_and_read(dev->spi_desc, buf, 3);
 	*reg_data = buf[2];
 
 	return ret;
@@ -67,18 +73,19 @@ int32_t ad9265_spi_read(spi_device *dev,
 /***************************************************************************//**
 * @brief ad9265_spi_write
 *******************************************************************************/
-int32_t ad9265_spi_write(spi_device *dev,
-						 uint16_t reg_addr,
-						 uint8_t reg_data)
+int32_t ad9265_spi_write(struct ad9265_dev *dev,
+			 uint16_t reg_addr,
+			 uint8_t reg_data)
 {
 	uint8_t buf[3];
+
 	int32_t ret;
 
 	buf[0] = reg_addr >> 8;
 	buf[1] = reg_addr & 0xFF;
 	buf[2] = reg_data;
 
-	ret = ad_spi_xfer(dev, buf, 3);
+	ret = spi_write_and_read(dev->spi_desc, buf, 3);
 
 	return ret;
 }
@@ -86,8 +93,8 @@ int32_t ad9265_spi_write(spi_device *dev,
 /***************************************************************************//**
 * @brief ad9265_setup
 *******************************************************************************/
-int32_t ad9265_outputmode_set(spi_device *dev,
-							  uint8_t mode)
+int32_t ad9265_outputmode_set(struct ad9265_dev *dev,
+			      uint8_t mode)
 {
 	int32_t ret;
 
@@ -104,8 +111,8 @@ int32_t ad9265_outputmode_set(spi_device *dev,
 /***************************************************************************//**
 * @brief ad9265_setup
 *******************************************************************************/
-int32_t ad9265_testmode_set(spi_device *dev,
-							uint8_t mode)
+int32_t ad9265_testmode_set(struct ad9265_dev *dev,
+			    uint8_t mode)
 {
 	ad9265_spi_write(dev, AD9265_REG_TEST_IO, mode);
 	ad9265_spi_write(dev, AD9265_REG_TRANSFER, TRANSFER_SYNC);
@@ -116,24 +123,27 @@ int32_t ad9265_testmode_set(spi_device *dev,
 /***************************************************************************//**
 * @brief ad9265_calibrate
 *******************************************************************************/
-int32_t ad9265_calibrate(spi_device *dev,
-						 ad9265_init_param *init_param,
-						 adc_core core)
+int32_t ad9265_calibrate(struct ad9265_dev *dev,
+			 struct ad9265_init_param init_param,
+			 adc_core core)
 {
 	int32_t ret, val, cnt, start, max_start, max_cnt;
 	uint32_t stat, inv_range = 0, do_inv, lane,
-		 chan_ctrl0, max_val = init_param->dco ? 32 : 31;
-	unsigned char err_field[66];
+		       chan_ctrl0, max_val = init_param.dco ? 32 : 31;
+	uint8_t err_field[66];
+
 	uint32_t reg_cntrl;
 
-	ret = ad9265_outputmode_set(dev, init_param->output_mode  & ~OUTPUT_MODE_TWOS_COMPLEMENT);
+	ret = ad9265_outputmode_set(dev,
+				    init_param.output_mode  &
+				    ~OUTPUT_MODE_TWOS_COMPLEMENT);
 	if (ret < 0)
 		return ret;
 
 	adc_read(core, ADC_REG_CHAN_CNTRL(0), &chan_ctrl0);
 
 	do {
-		if (!init_param->dco) {
+		if (!init_param.dco) {
 			adc_read(core, ADC_REG_CNTRL, &reg_cntrl);
 
 			if (inv_range)
@@ -148,20 +158,25 @@ int32_t ad9265_calibrate(spi_device *dev,
 		adc_set_pnsel(core, 0, ADC_PN9);
 		adc_write(core, ADC_REG_CHAN_STATUS(0), ~0);
 
-		for (val = 0; val <= max_val; val++) {
-			if (init_param->dco) {
+		for (val = 0; (uint32_t)val <= max_val; val++) {
+			if (init_param.dco) {
 				ad9265_spi_write(dev, AD9265_REG_OUTPUT_DELAY,
-						val > 0 ? ((val - 1) | init_param->dco_en) : 0);
+						 val > 0 ? ((val - 1) |
+							    init_param.
+							    dco_en) : 0);
 				ad9265_spi_write(dev, AD9265_REG_TRANSFER,
-						TRANSFER_SYNC);
+						 TRANSFER_SYNC);
 			} else {
-				for (lane = 0; lane < init_param->nb_lanes; lane++) {
-					adc_write(core, ADC_REG_DELAY_CNTRL, 0);
+				for (lane = 0;
+				     lane < init_param.nb_lanes;
+				     lane++) {
+					adc_write(core, ADC_REG_DELAY_CNTRL,
+						  0);
 
 					adc_write(core, ADC_REG_DELAY_CNTRL,
-							ADC_DELAY_ADDRESS(lane)
-							| ADC_DELAY_WDATA(val)
-							| ADC_DELAY_SEL);
+						  ADC_DELAY_ADDRESS(lane)
+						  | ADC_DELAY_WDATA(val)
+						  | ADC_DELAY_SEL);
 				}
 			}
 
@@ -172,11 +187,12 @@ int32_t ad9265_calibrate(spi_device *dev,
 			adc_read(core, ADC_REG_CHAN_STATUS(0), &stat);
 
 			err_field[val + (inv_range * (max_val + 1))] =
-			    ! !(stat & (ADC_PN_ERR | ADC_PN_OOS));
+				! !(stat & (ADC_PN_ERR | ADC_PN_OOS));
 		}
 
 		for (val = 0, cnt = 0, max_cnt = 0, start = -1, max_start = 0;
-		     val <= (max_val + (inv_range * (max_val + 1))); val++) {
+		     (uint32_t)val <= (max_val + (inv_range * (max_val + 1)));
+		     val++) {
 			if (err_field[val] == 0) {
 				if (start == -1)
 					start = val;
@@ -196,7 +212,8 @@ int32_t ad9265_calibrate(spi_device *dev,
 			max_start = start;
 		}
 
-		if ((inv_range == 0) && ((max_cnt < 3) || (err_field[max_val] == 0))) {
+		if ((inv_range == 0) && ((max_cnt < 3) ||
+					 (err_field[max_val] == 0))) {
 			do_inv = 1;
 			inv_range = 1;
 		} else {
@@ -208,27 +225,29 @@ int32_t ad9265_calibrate(spi_device *dev,
 	val = max_start + (max_cnt / 2);
 
 #ifdef DCO_DEBUG
-	for (cnt = 0; cnt <= (max_val + (inv_range * (max_val + 1))); cnt++) {
+	for (cnt = 0;
+	     (uint32_t)cnt <= (max_val + (inv_range * (max_val + 1)));
+	     cnt++) {
 		if (cnt == val)
-			ad_printf("|");
+			printf("|");
 		else
-			ad_printf("%c", err_field[cnt] ? '-' : 'o');
-		if (cnt == max_val)
-			ad_printf("\n");
+			printf("%c", err_field[cnt] ? '-' : 'o');
+		if ((uint32_t)cnt == max_val)
+			printf("\n");
 	}
 #endif
-	if (val > max_val) {
+	if ((uint32_t)val > max_val) {
 		val -= max_val + 1;
-		if (!init_param->dco) {
+		if (!init_param.dco) {
 			adc_read(core, ADC_REG_CNTRL, &reg_cntrl);
 			reg_cntrl |= ADC_DDR_EDGESEL;
 			adc_write(core, ADC_REG_CNTRL, reg_cntrl);
 		}
 		cnt = 1;
 	} else {
-		if (init_param->dco) {
+		if (init_param.dco) {
 			ad9265_spi_write(dev, AD9265_REG_OUTPUT_PHASE,
-				 OUTPUT_EVEN_ODD_MODE_EN);
+					 OUTPUT_EVEN_ODD_MODE_EN);
 		} else {
 			adc_read(core, ADC_REG_CNTRL, &reg_cntrl);
 			reg_cntrl &= ~ADC_DDR_EDGESEL;
@@ -238,32 +257,35 @@ int32_t ad9265_calibrate(spi_device *dev,
 	}
 
 #ifdef DCO_DEBUG
-	if (init_param->dco)
-		ad_printf(" %s DCO 0x%X\n", cnt ? "INVERT" : "",
-				val > 0 ? (uint16_t)((val - 1) | init_param->dco_en) : 0);
+	if (init_param.dco)
+		printf(" %s DCO 0x%X\n", cnt ? "INVERT" : "",
+			  val > 0 ?
+			  (uint16_t)((val - 1) | init_param.dco_en) : 0);
 	else
-		ad_printf(" %s IDELAY 0x%x\n", cnt ? "INVERT" : "", (uint16_t)val);
+		printf(" %s IDELAY 0x%x\n", cnt ? "INVERT" : "",
+			  (uint16_t)val);
 #endif
 
 	ad9265_testmode_set(dev, TESTMODE_OFF);
-	if (init_param->dco) {
+	if (init_param.dco) {
 		ad9265_spi_write(dev, AD9265_REG_OUTPUT_DELAY,
-				val > 0 ? ((val - 1) | init_param->dco_en) : 0);
+				 val > 0 ?
+				 ((val - 1) | init_param.dco_en) : 0);
 		ad9265_spi_write(dev, AD9265_REG_TRANSFER, TRANSFER_SYNC);
 	} else {
-		for (lane = 0; lane < init_param->nb_lanes; lane++) {
+		for (lane = 0; lane < init_param.nb_lanes; lane++) {
 			adc_write(core, ADC_REG_DELAY_CNTRL, 0);
 
 			adc_write(core, ADC_REG_DELAY_CNTRL,
-					ADC_DELAY_ADDRESS(lane)
-					| ADC_DELAY_WDATA(val)
-					| ADC_DELAY_SEL);
+				  ADC_DELAY_ADDRESS(lane)
+				  | ADC_DELAY_WDATA(val)
+				  | ADC_DELAY_SEL);
 		}
 	}
 
 	adc_write(core, ADC_REG_CHAN_CNTRL(0), chan_ctrl0);
 
-	ret = ad9265_outputmode_set(dev, init_param->output_mode);
+	ret = ad9265_outputmode_set(dev, init_param.output_mode);
 	if (ret < 0)
 		return ret;
 
@@ -273,29 +295,53 @@ int32_t ad9265_calibrate(spi_device *dev,
 /***************************************************************************//**
 * @brief ad9265_setup
 *******************************************************************************/
-int32_t ad9265_setup(spi_device *dev,
-					ad9265_init_param *init_param,
-					adc_core core)
+int32_t ad9265_setup(struct ad9265_dev **device,
+		     struct ad9265_init_param init_param,
+		     adc_core core)
 {
 	uint8_t chip_id;
 	int32_t ret;
+	struct ad9265_dev *dev;
+
+	dev = (struct ad9265_dev *)malloc(sizeof(*dev));
+	if (!dev)
+		return -1;
+
+	/* SPI */
+	ret = spi_init(&dev->spi_desc, init_param.spi_init);
 
 	ad9265_spi_read(dev, AD9265_REG_CHIP_ID, &chip_id);
-	if(chip_id != AD9265_CHIP_ID)
-	{
-		ad_printf("Error: Invalid CHIP ID (0x%x).\n", chip_id);
+	if(chip_id != AD9265_CHIP_ID) {
+		printf("Error: Invalid CHIP ID (0x%x).\n", chip_id);
 		return -1;
 	}
 
-	init_param->output_mode = AD9265_DEF_OUTPUT_MODE | OUTPUT_MODE_TWOS_COMPLEMENT;
-	ad9265_outputmode_set(dev, init_param->output_mode);
+	init_param.output_mode = AD9265_DEF_OUTPUT_MODE |
+				  OUTPUT_MODE_TWOS_COMPLEMENT;
+	ad9265_outputmode_set(dev, init_param.output_mode);
 
-	init_param->dco = 1;
-	init_param->dco_en = 0;
-	init_param->nb_lanes = 6;
+	init_param.dco = 1;
+	init_param.dco_en = 0;
+	init_param.nb_lanes = 6;
 	ad9265_calibrate(dev, init_param, core);
 
-	ad_printf("AD9265 successfully initialized.\n");
+	*device = dev;
+
+	printf("AD9265 successfully initialized.\n");
+
+	return ret;
+}
+
+/***************************************************************************//**
+* @brief ad9265_remove
+*******************************************************************************/
+int32_t ad9265_remove(struct ad9265_dev *dev)
+{
+	int32_t ret;
+
+	ret = spi_remove(dev->spi_desc);
+
+	free(dev);
 
 	return ret;
 }

@@ -1697,6 +1697,16 @@ out:
 }
 
 /**
+ * Get Enable State Machine (ENSM) state.
+ * @param phy The AD9361 state structure.
+ * @return The state.
+ */
+uint8_t ad9361_ensm_get_state(struct ad9361_rf_phy *phy)
+{
+	return ad9361_spi_readf(phy->spi, REG_STATE, ENSM_STATE(~0));
+}
+
+/**
  * Force Enable State Machine (ENSM) to the desired state (internally used only).
  * @param phy The AD9361 state structure.
  * @param ensm_state The ENSM state [ENSM_STATE_SLEEP_WAIT, ENSM_STATE_ALERT,
@@ -1708,7 +1718,7 @@ void ad9361_ensm_force_state(struct ad9361_rf_phy *phy, uint8_t ensm_state)
 {
 	struct spi_device *spi = phy->spi;
 	uint8_t dev_ensm_state;
-	int32_t rc;
+	int32_t rc, timeout = 10;
 	uint32_t val;
 
 	dev_ensm_state = ad9361_spi_readf(spi, REG_STATE, ENSM_STATE(~0));
@@ -1762,7 +1772,16 @@ void ad9361_ensm_force_state(struct ad9361_rf_phy *phy, uint8_t ensm_state)
 	ad9361_spi_write(spi, REG_ENSM_CONFIG_1, TO_ALERT | FORCE_ALERT_STATE);
 
 	rc = ad9361_spi_write(spi, REG_ENSM_CONFIG_1, val);
-	if (rc)
+	if (rc) {
+		dev_err(dev, "Failed to write ENSM_CONFIG_1\n");
+		goto out;
+	}
+
+	while (ad9361_ensm_get_state(phy) != ensm_state && --timeout) {
+		mdelay(1);
+	}
+
+	if (timeout == 0)
 		dev_err(dev, "Failed to restore state");
 
 out:
@@ -1771,11 +1790,12 @@ out:
 }
 
 /**
- * Restore the previous Enable State Machine (ENSM) state.
+ * Restore an Enable State Machine (ENSM) state.
  * @param phy The AD9361 state structure.
+ * @param ensm_state The state.
  * @return None.
  */
-void ad9361_ensm_restore_prev_state(struct ad9361_rf_phy *phy)
+void ad9361_ensm_restore_state(struct ad9361_rf_phy *phy, uint8_t ensm_state)
 {
 	struct spi_device *spi = phy->spi;
 	int32_t rc;
@@ -1786,11 +1806,10 @@ void ad9361_ensm_restore_prev_state(struct ad9361_rf_phy *phy)
 	/* We are restoring state only, so clear State bits first
 	* which might have set while forcing a particular state
 	*/
-	val &= ~(FORCE_TX_ON | FORCE_RX_ON |
-		TO_ALERT | FORCE_ALERT_STATE);
+	val &= ~(FORCE_TX_ON | FORCE_RX_ON | FORCE_ALERT_STATE);
+	val |= TO_ALERT;
 
-	switch (phy->prev_ensm_state) {
-
+	switch (ensm_state) {
 	case ENSM_STATE_TX:
 	case ENSM_STATE_FDD:
 		val |= FORCE_TX_ON;
@@ -1803,11 +1822,11 @@ void ad9361_ensm_restore_prev_state(struct ad9361_rf_phy *phy)
 		break;
 	case ENSM_STATE_INVALID:
 		dev_dbg(dev, "No need to restore, ENSM state wasn't saved");
-		goto out;
+		return;
 	default:
 		dev_dbg(dev, "Could not restore to %d ENSM state",
-			phy->prev_ensm_state);
-		goto out;
+				ensm_state);
+		return;
 	}
 
 	ad9361_spi_write(spi, REG_ENSM_CONFIG_1, TO_ALERT | FORCE_ALERT_STATE);
@@ -1815,7 +1834,7 @@ void ad9361_ensm_restore_prev_state(struct ad9361_rf_phy *phy)
 	rc = ad9361_spi_write(spi, REG_ENSM_CONFIG_1, val);
 	if (rc) {
 		dev_err(dev, "Failed to write ENSM_CONFIG_1");
-		goto out;
+		return;
 	}
 
 	if (phy->ensm_pin_ctl_en) {
@@ -1824,9 +1843,16 @@ void ad9361_ensm_restore_prev_state(struct ad9361_rf_phy *phy)
 		if (rc)
 			dev_err(dev, "Failed to write ENSM_CONFIG_1");
 	}
+}
 
-out:
-	return;
+/**
+ * Restore the previous Enable State Machine (ENSM) state.
+ * @param phy The AD9361 state structure.
+ * @return None.
+ */
+void ad9361_ensm_restore_prev_state(struct ad9361_rf_phy *phy)
+{
+	return ad9361_ensm_restore_state(phy, phy->prev_ensm_state);
 }
 
 /**
@@ -1958,6 +1984,7 @@ int32_t ad9361_set_rx_gain(struct ad9361_rf_phy *phy,
 
 	if (val != RX_GAIN_CTL_MGC) {
 		dev_dbg(dev, "Rx gain can be set in MGC mode only");
+		rc = -EOPNOTSUPP;
 		goto out;
 	}
 
@@ -2017,7 +2044,7 @@ int32_t ad9361_init_gain_tables(struct ad9361_rf_phy *phy)
 		SIZE_FULL_TABLE, 0);
 
 	rx_gain = &phy->rx_gain[TBL_1300_4000_MHZ];
-	ad9361_init_gain_info(rx_gain, RXGAIN_FULL_TBL, -4, 71, 1,
+	ad9361_init_gain_info(rx_gain, RXGAIN_FULL_TBL, -3, 71, 1,
 		SIZE_FULL_TABLE, 1);
 
 	rx_gain = &phy->rx_gain[TBL_4000_6000_MHZ];
@@ -2048,7 +2075,7 @@ static int32_t ad9361_gc_update(struct ad9361_rf_phy *phy)
 	 * ClkRF in MHz, delay in us
 	 */
 
-	reg = (200 * delay_lna) / 2 + (14000000UL / (clkrf / 500U));
+	reg = (200 + delay_lna) / 2 + (14000000UL / (clkrf / 500U));
 	reg = DIV_ROUND_UP(reg, 1000UL) +
 		phy->pdata->gain_ctrl.agc_attack_delay_extra_margin_us;
 	reg = clamp_t(uint8_t, reg, 0U, 31U);
@@ -2644,7 +2671,7 @@ static int32_t ad9361_txrx_synth_cp_calib(struct ad9361_rf_phy *phy,
 	ad9361_spi_write(phy->spi, REG_RX_VCO_LDO + offs, 0x0B);
 	ad9361_spi_write(phy->spi, REG_RX_VCO_PD_OVERRIDES + offs, 0x02);
 	ad9361_spi_write(phy->spi, REG_RX_CP_CURRENT + offs, 0x80);
-	ad9361_spi_write(phy->spi, REG_RX_CP_CONFIG + offs, 0x00);
+	ad9361_spi_write(phy->spi, REG_RX_CP_CONFIG + offs, CP_OFFSET_OFF);
 
 	/* see Table 70 Example Calibration Times for RF VCO Cal */
 	if (phy->pdata->fdd) {
@@ -2674,7 +2701,8 @@ static int32_t ad9361_txrx_synth_cp_calib(struct ad9361_rf_phy *phy,
 		TO_ALERT);
 	ad9361_spi_write(phy->spi, REG_ENSM_MODE, FDD_MODE);
 
-	ad9361_spi_write(phy->spi, REG_RX_CP_CONFIG + offs, CP_CAL_ENABLE);
+	ad9361_spi_write(phy->spi, REG_RX_CP_CONFIG + offs,
+			 CP_OFFSET_OFF | CP_CAL_ENABLE);
 
 	return ad9361_check_cal_done(phy, REG_RX_CAL_STATUS + offs,
 		CP_CAL_VALID, 1);
@@ -3237,7 +3265,9 @@ static int32_t ad9361_txmon_setup(struct ad9361_rf_phy *phy,
 			 (ctrl->one_shot_mode_en ? ONE_SHOT_MODE : 0) |
 			 TX_MON_DURATION(ilog2(ctrl->tx_mon_duration / 16)));
 
-	ad9361_spi_write(spi, REG_TX_MON_DELAY, ctrl->tx_mon_delay);
+	ad9361_spi_write(spi, REG_TX_MON_DELAY, ctrl->tx_mon_delay & 0xFF);
+	ad9361_spi_writef(spi, REG_TX_LEVEL_THRESH,
+			TX_MON_DELAY_COUNTER(~0), ctrl->tx_mon_delay >> 8);
 
 	ad9361_spi_write(spi, REG_TX_MON_1_CONFIG,
 			 TX_MON_1_LO_CM(ctrl->tx1_mon_lo_cm) |
@@ -3761,11 +3791,11 @@ static int32_t ad9361_auxdac_set(struct ad9361_rf_phy *phy, int32_t dac,
 		val_mV = 306;
 
 	if (val_mV < 1888) {
-		val = ((val_mV - 306) * 1000) / 1404; /* Vref = 1V, Step = 2 */
+		val = ((val_mV - 306) * 1000) / 1469; /* Vref = 1V, Step = 2 */
 		tmp = AUXDAC_1_VREF(0);
 	}
 	else {
-		val = ((val_mV - 1761) * 1000) / 1836; /* Vref = 2.5V, Step = 2 */
+		val = ((val_mV - 1761) * 1000) / 1512; /* Vref = 2.5V, Step = 2 */
 		tmp = AUXDAC_1_VREF(3);
 	}
 

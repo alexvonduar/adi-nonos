@@ -2265,6 +2265,7 @@
 *	REG_RX_CP_CONFIG
 */
 #define HALF_VCO_CAL_CLK		     (1 << 7) /* Half Vco Cal Clk */
+#define CP_OFFSET_OFF			     (1 << 4) /* CP Offset Off */
 #define F_CPCAL				     (1 << 3) /* F Cpcal */
 #define CP_CAL_ENABLE			     (1 << 2) /* Cp Cal Enable */
 
@@ -3484,6 +3485,8 @@ int32_t ad9361_fastlock_load(struct ad9361_rf_phy *phy, bool tx,
 int32_t ad9361_fastlock_save(struct ad9361_rf_phy *phy, bool tx,
 	uint32_t profile, uint8_t *values);
 void ad9361_ensm_force_state(struct ad9361_rf_phy *phy, uint8_t ensm_state);
+uint8_t ad9361_ensm_get_state(struct ad9361_rf_phy *phy);
+void ad9361_ensm_restore_state(struct ad9361_rf_phy *phy, uint8_t ensm_state);
 void ad9361_ensm_restore_prev_state(struct ad9361_rf_phy *phy);
 int32_t ad9361_set_trx_clock_chain_freq(struct ad9361_rf_phy *phy,
 	uint32_t freq);
