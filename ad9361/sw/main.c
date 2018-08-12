@@ -108,6 +108,7 @@ AD9361_InitParam default_init_param = {
 	/* LO Control */
 	2400000000UL,	//rx_synthesizer_frequency_hz *** adi,rx-synthesizer-frequency-hz
 	2400000000UL,	//tx_synthesizer_frequency_hz *** adi,tx-synthesizer-frequency-hz
+	1,				//tx_lo_powerdown_managed_enable *** adi,tx-lo-powerdown-managed-enable
 	/* Rate & BW Control */
 	{983040000, 245760000, 122880000, 61440000, 30720000, 30720000},// rx_path_clock_frequencies[6] *** adi,rx-path-clock-frequencies
 	{983040000, 122880000, 122880000, 61440000, 30720000, 30720000},// tx_path_clock_frequencies[6] *** adi,tx-path-clock-frequencies
@@ -412,11 +413,11 @@ int main(void)
 	if (AD9363A_DEVICE)
 		default_init_param.dev_sel = ID_AD9363A;
 
-#if defined FMCOMMS5 || defined PICOZED_SDR || defined PICOZED_SDR_CMOS
+#if defined FMCOMMS5 || defined ADI_RF_SOM || defined ADI_RF_SOM_CMOS
 	default_init_param.xo_disable_use_ext_refclk_enable = 1;
 #endif
 
-#ifdef PICOZED_SDR_CMOS
+#ifdef ADI_RF_SOM_CMOS
 	default_init_param.swap_ports_enable = 1;
 	default_init_param.lvds_mode_enable = 0;
 	default_init_param.lvds_rx_onchip_termination_enable = 0;
@@ -453,7 +454,7 @@ int main(void)
 
 #ifndef AXI_ADC_NOT_PRESENT
 #if defined XILINX_PLATFORM || defined LINUX_PLATFORM || defined ALTERA_PLATFORM
-#ifdef DAC_DMA
+#ifdef DAC_DMA_EXAMPLE
 #ifdef FMCOMMS5
 	dac_init(ad9361_phy_b, DATA_SEL_DMA, 0);
 #endif
@@ -472,7 +473,7 @@ int main(void)
 #endif
 
 #ifndef AXI_ADC_NOT_PRESENT
-#if (defined XILINX_PLATFORM || defined ALTERA_PLATFORM) && defined CAPTURE_SCRIPT
+#if (defined XILINX_PLATFORM || defined ALTERA_PLATFORM) && defined ADC_DMA_EXAMPLE
     // NOTE: To prevent unwanted data loss, it's recommended to invalidate
     // cache after each adc_capture() call, keeping in mind that the
     // size of the capture and the start address must be alinged to the size
@@ -480,7 +481,12 @@ int main(void)
 	mdelay(1000);
 	adc_capture(16384, ADC_DDR_BASEADDR);
 #ifdef XILINX_PLATFORM
-    Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR, 16384);
+#ifdef FMCOMMS5
+	Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR, 16384 * 16);
+#else
+	Xil_DCacheInvalidateRange(ADC_DDR_BASEADDR,
+			ad9361_phy->pdata->rx2tx2 ? 16384 * 8 : 16384 * 4);
+#endif
 #endif
 #endif
 #endif
