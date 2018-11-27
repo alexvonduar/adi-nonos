@@ -42,6 +42,12 @@
 #define __AD7124_H__
 
 /******************************************************************************/
+/***************************** Include Files **********************************/
+/******************************************************************************/
+#include <stdint.h>
+#include "platform_drivers.h"
+
+/******************************************************************************/
 /******************* Register map and register definitions ********************/
 /******************************************************************************/
 
@@ -128,7 +134,7 @@
 #define AD7124_ADC_CTRL_REG_REF_EN         (1 << 8)
 #define AD7124_ADC_CTRL_REG_POWER_MODE(x)  (((x) & 0x3) << 6)
 #define AD7124_ADC_CTRL_REG_MODE(x)        (((x) & 0xF) << 2)
-#define AD7124_ADC_CTRL_REG_CLK_SEL(x))    (((x) & 0x3) << 0)
+#define AD7124_ADC_CTRL_REG_CLK_SEL(x)     (((x) & 0x3) << 0)
 
 /* IO_Control_1 Register bits */
 #define AD7124_IO_CTRL1_REG_GPIO_DAT2     (1 << 23)
@@ -266,7 +272,7 @@ enum ad7124_registers {
 	AD7124_ADC_Control,
 	AD7124_Data,
 	AD7124_IOCon1,
-	AD7124_IOCon2_,
+	AD7124_IOCon2,
 	AD7124_ID,
 	AD7124_Error,
 	AD7124_Error_En,
@@ -324,7 +330,7 @@ enum ad7124_registers {
 
 /*
  * The structure describes the device and is used with the ad7124 driver.
- * @slave_select_id: The ID of the Slave Select to be passed to the SPI calls.
+ * @spi_desc: A reference to the SPI configuration of the device.
  * @regs: A reference to the register list of the device that the user must
  *       provide when calling the Setup() function.
  * @userCRC: Whether to do or not a cyclic redundancy check on SPI transfers.

@@ -51,30 +51,160 @@
 /*****************************************************************************/
 /***************************** Constant definition ***************************/
 /*****************************************************************************/
+static const unsigned int ad5683_channel_addr [] = {
+	[AD5686_CH_0] = 0,
+};
+
+static const unsigned int ad5686_channel_addr[] = {
+	[AD5686_CH_0] = 1,
+	[AD5686_CH_1] = 2,
+	[AD5686_CH_2] = 4,
+	[AD5686_CH_3] = 8,
+};
+
+static const unsigned int ad5676_channel_addr[] = {
+	[AD5686_CH_0] = 0,
+	[AD5686_CH_1] = 1,
+	[AD5686_CH_2] = 2,
+	[AD5686_CH_3] = 3,
+	[AD5686_CH_4] = 4,
+	[AD5686_CH_5] = 5,
+	[AD5686_CH_6] = 6,
+	[AD5686_CH_7] = 7,
+};
+
 static const struct ad5686_chip_info chip_info[] = {
+	[ID_AD5671R] = {
+		.resolution = 12,
+		.register_map = AD5686_REG_MAP,
+		.communication = I2C,
+		.channel_addr = ad5676_channel_addr,
+	},
+	[ID_AD5672R] = {
+		.resolution = 12,
+		.register_map = AD5686_REG_MAP,
+		.communication = SPI,
+		.channel_addr = ad5676_channel_addr,
+	},
+	[ID_AD5675R] = {
+		.resolution = 16,
+		.register_map = AD5686_REG_MAP,
+		.communication = I2C,
+		.channel_addr = ad5676_channel_addr,
+	},
+	[ID_AD5676] = {
+		.resolution = 16,
+		.register_map = AD5686_REG_MAP,
+		.communication = SPI,
+		.channel_addr = ad5676_channel_addr,
+	},
+	[ID_AD5676R] = {
+		.resolution = 16,
+		.register_map = AD5686_REG_MAP,
+		.communication = SPI,
+		.channel_addr = ad5676_channel_addr,
+	},
 	[ID_AD5684R] = {
 		.resolution = 12,
+		.register_map = AD5686_REG_MAP,
 		.communication = SPI,
+		.channel_addr = ad5686_channel_addr,
 	},
 	[ID_AD5685R] = {
 		.resolution = 14,
+		.register_map = AD5686_REG_MAP,
 		.communication = SPI,
+		.channel_addr = ad5686_channel_addr,
+	},
+	[ID_AD5686] = {
+		.resolution = 16,
+		.register_map = AD5686_REG_MAP,
+		.communication = SPI,
+		.channel_addr = ad5686_channel_addr,
 	},
 	[ID_AD5686R] = {
 		.resolution = 16,
+		.register_map = AD5686_REG_MAP,
 		.communication = SPI,
+		.channel_addr = ad5686_channel_addr,
+	},
+	[ID_AD5694] = {
+		.resolution = 12,
+		.register_map = AD5686_REG_MAP,
+		.communication = I2C,
+		.channel_addr = ad5686_channel_addr,
 	},
 	[ID_AD5694R] = {
 		.resolution = 12,
+		.register_map = AD5686_REG_MAP,
 		.communication = I2C,
+		.channel_addr = ad5686_channel_addr,
 	},
 	[ID_AD5695R] = {
 		.resolution = 14,
+		.register_map = AD5686_REG_MAP,
 		.communication = I2C,
+		.channel_addr = ad5686_channel_addr,
+	},
+	[ID_AD5696] = {
+		.resolution = 16,
+		.register_map = AD5686_REG_MAP,
+		.communication = I2C,
+		.channel_addr = ad5686_channel_addr,
 	},
 	[ID_AD5696R] = {
 		.resolution = 16,
+		.register_map = AD5686_REG_MAP,
 		.communication = I2C,
+		.channel_addr = ad5686_channel_addr,
+	},
+	[ID_AD5681R] = {
+		.resolution = 12,
+		.register_map = AD5683_REG_MAP,
+		.communication = SPI,
+		.channel_addr = ad5683_channel_addr,
+	},
+	[ID_AD5682R] = {
+		.resolution = 14,
+		.register_map = AD5683_REG_MAP,
+		.communication = SPI,
+		.channel_addr = ad5683_channel_addr,
+	},
+	[ID_AD5683R] = {
+		.resolution = 16,
+		.register_map = AD5683_REG_MAP,
+		.communication = SPI,
+		.channel_addr = ad5683_channel_addr,
+	},
+	[ID_AD5683] = {
+		.resolution = 16,
+		.register_map = AD5683_REG_MAP,
+		.communication = SPI,
+		.channel_addr = ad5683_channel_addr,
+	},
+	[ID_AD5691R] = {
+		.resolution = 12,
+		.register_map = AD5683_REG_MAP,
+		.communication = I2C,
+		.channel_addr = ad5683_channel_addr,
+	},
+	[ID_AD5692R] = {
+		.resolution = 14,
+		.register_map = AD5683_REG_MAP,
+		.communication = I2C,
+		.channel_addr = ad5683_channel_addr,
+	},
+	[ID_AD5693R] = {
+		.resolution = 16,
+		.register_map = AD5683_REG_MAP,
+		.communication = I2C,
+		.channel_addr = ad5683_channel_addr,
+	},
+	[ID_AD5693] = {
+		.resolution = 16,
+		.register_map = AD5683_REG_MAP,
+		.communication = I2C,
+		.channel_addr = ad5683_channel_addr,
 	}
 };
 
@@ -103,6 +233,8 @@ int32_t ad5686_init(struct ad5686_dev **device,
 		return -1;
 
 	dev->act_device = init_param.act_device;
+	dev->power_down_mask = 0;
+	dev->ldac_mask = 0;
 
 	if (chip_info[dev->act_device].communication == SPI)
 		ret = spi_init(&dev->spi_desc, &init_param.spi_init);
@@ -159,7 +291,7 @@ int32_t ad5686_remove(struct ad5686_dev *dev)
  * @param command - Command control bits.
  * @param data    - Data to be written in input register.
  *
- * @return  readBack - value read from register.
+ * @return  read_back_data - value read from register.
 ******************************************************************************/
 uint16_t ad5686_set_shift_reg(struct ad5686_dev *dev,
 			      uint8_t command,
@@ -169,14 +301,26 @@ uint16_t ad5686_set_shift_reg(struct ad5686_dev *dev,
 	uint8_t data_buff [ PKT_LENGTH ] = {0, 0, 0};
 	uint16_t read_back_data = 0;
 
-	data_buff[0] = ((command & CMD_MASK) << CMD_OFFSET) | \
-		       (address & ADDR_MASK);
-	data_buff[1] = (data & MSB_MASK) >> MSB_OFFSET;
-	data_buff[2] = (data & LSB_MASK);
+	if(chip_info[dev->act_device].register_map == AD5686_REG_MAP) {
+		data_buff[0] = ((command & AD5686_CMD_MASK) << CMD_OFFSET) | \
+			       (address & ADDR_MASK);
+		data_buff[1] = (data & AD5686_MSB_MASK) >> AD5686_MSB_OFFSET;
+		data_buff[2] = (data & AD5686_LSB_MASK);
+	} else {
+		data_buff[0] = ((command & AD5683_CMD_MASK) << CMD_OFFSET) |
+			       ((data >> AD5683_MSB_OFFSET) & AD5683_MSB_MASK);
+		data_buff[1] = (data >> AD5683_MIDB_OFFSET) & AD5683_MIDB_MASK;
+		data_buff[2] = (data & AD5683_LSB_MASK) << AD5683_LSB_OFFSET;
+	}
 
 	if(chip_info[dev->act_device].communication == SPI) {
 		spi_write_and_read(dev->spi_desc, data_buff, PKT_LENGTH);
-		read_back_data = (data_buff[1] << MSB_OFFSET) | data_buff[2];
+		if(chip_info[dev->act_device].register_map == AD5686_REG_MAP)
+			read_back_data = (data_buff[1] << AD5686_MSB_OFFSET) | data_buff[2];
+		else
+			read_back_data = (data_buff[0] & AD5683_CMD_MASK) << AD5683_MSB_OFFSET |
+					 data_buff[1] << AD5683_MIDB_OFFSET |
+					 data_buff[2] >> AD5683_LSB_OFFSET;
 	} else
 		i2c_write(dev->i2c_desc, data_buff, PKT_LENGTH, 1);
 
@@ -187,19 +331,26 @@ uint16_t ad5686_set_shift_reg(struct ad5686_dev *dev,
  * @brief Write to Input Register n (dependent on LDAC)
  *
  * @param dev      - The device structure.
- * @param address  - The chosen channel to write to.
- *                    Example: 'AD5686_CH_A | AD5686_CH_C' will write to \
- *                              channel A and C
+ * @param channel  - The chosen channel to write to.
+ *                    Accepted values:	AD5686_CH_0
+ *					AD5686_CH_1
+ *					AD5686_CH_2
+ *					AD5686_CH_3
+ *					AD5686_CH_4
+ * 					AD5686_CH_5
+ *					AD5686_CH_6
+ * 					AD5686_CH_7
  * @param data - desired value to be written in register.
  *
  * @return None.
 ******************************************************************************/
 void ad5686_write_register(struct ad5686_dev *dev,
-			   uint8_t address,
+			   enum ad5686_dac_channels channel,
 			   uint16_t data)
 {
 	uint8_t data_offset = MAX_RESOLUTION - \
 			      chip_info[dev->act_device].resolution;
+	uint8_t address = chip_info[dev->act_device].channel_addr[channel];
 
 	ad5686_set_shift_reg(dev, AD5686_CTRL_WRITE, address,
 			     data << data_offset);
@@ -209,15 +360,22 @@ void ad5686_write_register(struct ad5686_dev *dev,
  * @brief Update DAC Register n with contents of Input Register n
  *
  * @param dev     - The device structure.
- * @param address - The chosen channel to write to.
- *                  Example: 'AD5686_CH_A | AD5686_CH_C' will write to \
- *                            channel A and C
- *
+ * @param channel  - The chosen channel to write to.
+ *                    Accepted values:	AD5686_CH_0
+ *					AD5686_CH_1
+ *					AD5686_CH_2
+ *					AD5686_CH_3
+ *					AD5686_CH_4
+ * 					AD5686_CH_5
+ *					AD5686_CH_6
+ * 					AD5686_CH_7
  * @return None.
 ******************************************************************************/
 void ad5686_update_register(struct ad5686_dev *dev,
-			    uint8_t address)
+			    enum ad5686_dac_channels channel)
 {
+	uint8_t address = chip_info[dev->act_device].channel_addr[channel];
+
 	ad5686_set_shift_reg(dev, AD5686_CTRL_UPDATE, address, 0);
 }
 
@@ -225,19 +383,26 @@ void ad5686_update_register(struct ad5686_dev *dev,
  * @brief Write to and update DAC channel n
  *
  * @param dev     - The device structure.
- * @param address - The chosen channel to write to.
- *                  Example: 'AD5686_CH_A | AD5686_CH_C' will write to \
- *                            channel A and C
+ * @param channel  - The chosen channel to write to.
+ *                    Accepted values:	AD5686_CH_0
+ *					AD5686_CH_1
+ *					AD5686_CH_2
+ *					AD5686_CH_3
+ *					AD5686_CH_4
+ * 					AD5686_CH_5
+ *					AD5686_CH_6
+ * 					AD5686_CH_7
  * @param data    - Desired value to be written in register.
  *
  * @return None.
 ******************************************************************************/
 void ad5686_write_update_register(struct ad5686_dev *dev,
-				  uint8_t address,
+				  enum ad5686_dac_channels channel,
 				  uint16_t data)
 {
 	uint8_t data_offset = MAX_RESOLUTION - \
 			      chip_info[dev->act_device].resolution;
+	uint8_t address = chip_info[dev->act_device].channel_addr[channel];
 
 	ad5686_set_shift_reg(dev, AD5686_CTRL_WRITEUPDATE, address,
 			     data << data_offset);
@@ -247,21 +412,28 @@ void ad5686_write_update_register(struct ad5686_dev *dev,
  * @brief Read back Input Register n
  *
  * @param dev     - The device structure.
- * @param address - The channel which will be read back. Note: only one
+ * @param channel - The channel which will be read back. Note: only one
  *                  channel should be selected, if there will be selected
  *                  more than one channel, the channel A will be read back
  *                  by default
- *                  Example: 'AD5686_CH_C' will read back the channel C
- *
- * @return None.
+ *                    Accepted values:	AD5686_CH_0
+ *					AD5686_CH_1
+ *					AD5686_CH_2
+ *					AD5686_CH_3
+ *					AD5686_CH_4
+ * 					AD5686_CH_5
+ *					AD5686_CH_6
+ * 					AD5686_CH_7
+ * @return read_back_data - value read from register.
 ******************************************************************************/
 uint16_t ad5686_read_back_register(struct ad5686_dev *dev,
-				   uint8_t address)
+				   enum ad5686_dac_channels channel)
 {
 
 	uint16_t read_back_data = 0;
 	uint16_t offset = MAX_RESOLUTION - \
 			  chip_info[dev->act_device].resolution;
+	uint8_t address = chip_info[dev->act_device].channel_addr[channel];
 
 	if(chip_info[dev->act_device].communication == SPI) {
 		ad5686_set_shift_reg(dev, AD5686_CTRL_RB_REG, address, 0);
@@ -274,12 +446,18 @@ uint16_t ad5686_read_back_register(struct ad5686_dev *dev,
 }
 
 /**************************************************************************//**
- * @brief Write to and update DAC channel n
+ * @brief Set Power-down mode for DAC channel n
  *
  * @param dev     - The device structure.
- * @param address - The chosen channel to write to.
- *                  Example : 'AD5686_CH_A | AD5686_CH_C' will write to \
- *                             channel A and C
+ * @param channel  - The chosen channel to change the power-down mode.
+ *                    Accepted values:	AD5686_CH_0
+ *					AD5686_CH_1
+ *					AD5686_CH_2
+ *					AD5686_CH_3
+ *					AD5686_CH_4
+ * 					AD5686_CH_5
+ *					AD5686_CH_6
+ * 					AD5686_CH_7
  * @param mode    - Power-down operation modes.
  *                  Accepted values:
  *                  'AD5686_PWRM_NORMAL' - Normal Mode
@@ -290,21 +468,21 @@ uint16_t ad5686_read_back_register(struct ad5686_dev *dev,
  * @return None.
 ******************************************************************************/
 void ad5686_power_mode(struct ad5686_dev *dev,
-		       uint8_t address,
+		       enum ad5686_dac_channels channel,
 		       uint8_t mode)
 {
-	uint16_t data = 0;
+	uint8_t address = chip_info[dev->act_device].channel_addr[channel];
 
-	data |= (address & AD5686_CH_A) ?
-		(mode << AD5686_PWRM_CHA_OFFSET) : 0x0;
-	data |= (address & AD5686_CH_B) ?
-		(mode << AD5686_PWRM_CHB_OFFSET) : 0x0;
-	data |= (address & AD5686_CH_C) ?
-		(mode << AD5686_PWRM_CHC_OFFSET) : 0x0;
-	data |= (address & AD5686_CH_D) ?
-		(mode << AD5686_PWRM_CHD_OFFSET) : 0x0;
+	if(chip_info[dev->act_device].register_map == AD5686_REG_MAP) {
+		dev->power_down_mask &= ~(0x3 << (channel *2));
+		dev->power_down_mask |= (mode << (channel *2));
+		ad5686_set_shift_reg(dev, AD5686_CTRL_PWR, address,
+				     dev->power_down_mask);
+	} else {
+		ad5686_set_shift_reg(dev, AD5683_CMD_WR_CTRL_REG, address,
+				     AD5683_CTRL_PWRM(mode));
+	}
 
-	ad5686_set_shift_reg(dev, AD5686_CTRL_PWR, address, data);
 }
 
 /**************************************************************************//**
@@ -313,15 +491,25 @@ void ad5686_power_mode(struct ad5686_dev *dev,
  * @param dev       - The device structure.
  * @param ldac_mask - In case of which channel ignore transitions on the LDAC
  *                    pin.
- *                    Example: 'AD5686_CH_A | AD5686_CH_C' will write to \
- *                              channel A and C
- *
+ *                    Accepted values:	AD5686_CH_0
+ *					AD5686_CH_1
+ *					AD5686_CH_2
+ *					AD5686_CH_3
+ *					AD5686_CH_4
+ * 					AD5686_CH_5
+ *					AD5686_CH_6
+ * 					AD5686_CH_7
  * @return None.
 ******************************************************************************/
 void ad5686_ldac_mask(struct ad5686_dev *dev,
-		      uint8_t ldac_mask)
+		      enum ad5686_dac_channels channel,
+		      uint8_t enable)
 {
-	ad5686_set_shift_reg(dev, AD5686_CTRL_LDAC_MASK, 0, ldac_mask);
+	if(chip_info[dev->act_device].register_map == AD5686_REG_MAP) {
+		dev->ldac_mask &= ~(0x1 << channel);
+		dev->ldac_mask |= (enable << channel);
+		ad5686_set_shift_reg(dev, AD5686_CTRL_LDAC_MASK, 0, dev->ldac_mask);
+	}
 }
 
 /**************************************************************************//**
@@ -333,7 +521,10 @@ void ad5686_ldac_mask(struct ad5686_dev *dev,
 ******************************************************************************/
 void ad5686_software_reset(struct ad5686_dev *dev)
 {
-	ad5686_set_shift_reg(dev, AD5686_CTRL_SWRESET, 0, 0);
+	if(chip_info[dev->act_device].register_map == AD5686_REG_MAP)
+		ad5686_set_shift_reg(dev, AD5686_CTRL_SWRESET, 0, 0);
+	else
+		ad5686_set_shift_reg(dev, AD5683_CMD_WR_CTRL_REG, 0, AD5683_SW_RESET);
 }
 
 
@@ -350,7 +541,11 @@ void ad5686_software_reset(struct ad5686_dev *dev)
 void ad5686_internal_reference(struct ad5686_dev *dev,
 			       uint8_t value)
 {
-	ad5686_set_shift_reg(dev, AD5686_CTRL_IREF_REG, 0, value);
+	if(chip_info[dev->act_device].register_map == AD5686_REG_MAP)
+		ad5686_set_shift_reg(dev, AD5686_CTRL_IREF_REG, 0, value);
+	else
+		ad5686_set_shift_reg(dev, AD5683_CMD_WR_CTRL_REG, 0,
+				     AD5683_CTRL_INT_REF(value));
 }
 
 /**************************************************************************//**
@@ -366,7 +561,10 @@ void ad5686_internal_reference(struct ad5686_dev *dev,
 void ad5686_daisy_chain_en(struct ad5686_dev *dev,
 			   uint8_t value)
 {
-	ad5686_set_shift_reg(dev, AD5686_CTRL_DCEN, 0, value);
+	if(chip_info[dev->act_device].register_map == AD5686_REG_MAP)
+		ad5686_set_shift_reg(dev, AD5686_CTRL_DCEN, 0, value);
+	else
+		ad5686_set_shift_reg(dev, AD5683_CMD_WR_CTRL_REG, 0, AD5683_CTRL_DCEN(value));
 }
 
 /**************************************************************************//**
@@ -382,5 +580,25 @@ void ad5686_daisy_chain_en(struct ad5686_dev *dev,
 void ad5686_read_back_en(struct ad5686_dev *dev,
 			 uint8_t value)
 {
-	ad5686_set_shift_reg(dev, AD5686_CTRL_RB_REG, 0, value);
+	if(chip_info[dev->act_device].register_map == AD5686_REG_MAP)
+		ad5686_set_shift_reg(dev, AD5686_CTRL_RB_REG, 0, value);
+}
+
+/**************************************************************************//**
+ * @brief Set Gain mode
+ *
+ * @param dev   - The device structure.
+ * @param value - Gain modes.
+ *                Accepted values:
+ *                Example : 'AD5683_GB_VREF' - 0V to VREF
+ *                          'AD5683_GB_2VREF' - 0V to 2xVREF
+ *
+ * @return None.
+******************************************************************************/
+int32_t ad5686_gain_mode(struct ad5686_dev *dev, uint8_t value)
+{
+	if(chip_info[dev->act_device].register_map == AD5683_REG_MAP)
+		return ad5686_set_shift_reg(dev, AD5683_CMD_WR_CTRL_REG, 0,
+					    AD5683_CTRL_GM(value));
+	return -1;
 }

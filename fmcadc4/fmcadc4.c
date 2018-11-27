@@ -213,7 +213,7 @@ int main(void)
 	ad9680_1_core.no_of_channels = 2;
 	ad9680_1_core.resolution = 14;
 
-    // receiver DMA configuration
+	// receiver DMA configuration
 
 #ifdef ZYNQ
 	rx_xfer.start_address = XPAR_DDR_MEM_BASEADDR + 0x800000;
@@ -238,9 +238,9 @@ int main(void)
 
 	xcvr_getconfig(&ad9680_xcvr);
 	ad9680_xcvr.reconfig_bypass = 0;
-	ad9680_xcvr.ref_clock_khz = 500000;
+	ad9680_xcvr.ref_rate_khz = 500000;
 	ad9680_xcvr.lane_rate_kbps = ad9680_0_param.lane_rate_kbps;
-	ad9680_xcvr.dev.qpll_enable = 1;
+	ad9680_xcvr.dev.cpll_enable = 0;
 
 	gpio_get(&gpio_ad9528_status, GPIO_AD9528_STATUS);
 	gpio_get(&gpio_ad9528_rstn, GPIO_AD9528_RSTN);
@@ -285,15 +285,15 @@ int main(void)
 	ad9680_test(ad9680_0_device, AD9680_TEST_RAMP);
 	ad9680_test(ad9680_1_device, AD9680_TEST_RAMP);
 
-	if(!dmac_start_transaction(ad9680_dma)){
+	if(!dmac_start_transaction(ad9680_dma)) {
 		adc_ramp_test(ad9680_0_core, 2,
-					  rx_xfer.no_of_samples / (2*ad9680_0_core.no_of_channels),
-					  rx_xfer.start_address);
+			      rx_xfer.no_of_samples / (2*ad9680_0_core.no_of_channels),
+			      rx_xfer.start_address);
 	};
 
 	ad9680_test(ad9680_0_device, AD9680_TEST_OFF);
 	ad9680_test(ad9680_1_device, AD9680_TEST_OFF);
-	if(!dmac_start_transaction(ad9680_dma)){
+	if(!dmac_start_transaction(ad9680_dma)) {
 		ad_printf("RX capture done.\n");
 	};
 

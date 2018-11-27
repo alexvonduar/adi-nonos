@@ -2,7 +2,7 @@
  * @file xilinx_qpll.h
  * @brief part of xcvr dynamic reconfiguration driver.
  * @author andrei.grozav@analog.com)
- ********************************************************************************
+ *******************************************************************************
  * Copyright 2016(c) Analog Devices, Inc.
  *
  * All rights reserved.
@@ -35,7 +35,7 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *******************************************************************************/
+ ******************************************************************************/
 
 #ifndef XILINX_XCVR_QPLL_H
 #define XILINX_XCVR_QPLL_H
@@ -67,6 +67,14 @@
 #define QPLL_FBDIV_RATIO_ADDR		0x37
 #define QPLL_FBDIV_RATIO_MASK		0x0040
 
+#define QPLL_FBDIV(x)			(0x14 + (x) * 0x80)
+#define QPLL_REFCLK_DIV(x)		(0x18 + (x) * 0x80)
+
+#define QPLL0_FBDIV_DIV 0x14
+#define QPLL0_REFCLK_DIV 0x18
+#define QPLL1_FBDIV 0x94
+#define QPLL1_REFCLK_DIV 0x98
+
 /******************************************************************************/
 /*************************** Types Declarations *******************************/
 /******************************************************************************/
@@ -82,17 +90,40 @@ typedef struct {
 /************************ Functions Declarations ******************************/
 /******************************************************************************/
 
-int32_t xilinx_xcvr_calc_qpll_config(uint32_t refclk_khz,
-		uint32_t lane_rate_khz, xcvr_qpll *qpll_config);
+int32_t xilinx_xcvr_calc_qpll_config(xcvr_core *core,
+				     uint32_t refclk_khz,
+				     uint32_t lane_rate_khz,
+				     struct xilinx_xcvr_qpll_config *conf,
+				     uint32_t *out_div);
+
+int32_t xilinx_xcvr_gth34_qpll_read_config(xcvr_core *core,
+		uint32_t drp_port,
+		struct xilinx_xcvr_qpll_config *conf);
+
+int32_t xilinx_xcvr_gtx2_qpll_read_config(xcvr_core *core,
+		uint32_t drp_port,
+		struct xilinx_xcvr_qpll_config *conf);
 
 int32_t xilinx_xcvr_qpll_read_config(xcvr_core *core,
-		xcvr_qpll *qpll_config);
+				     uint32_t drp_port,
+				     struct xilinx_xcvr_qpll_config *conf);
+
+int32_t xilinx_xcvr_gtx2_qpll_write_config(xcvr_core *core,
+		uint32_t drp_port,
+		const struct xilinx_xcvr_qpll_config *conf);
+
+int32_t xilinx_xcvr_gth34_qpll_write_config(xcvr_core *core,
+		uint32_t drp_port,
+		const struct xilinx_xcvr_qpll_config *conf);
 
 int32_t xilinx_xcvr_qpll_write_config(xcvr_core *core,
-		xcvr_qpll *qpll_config);
+				      uint32_t drp_port,
+				      const struct xilinx_xcvr_qpll_config *conf);
 
-uint32_t xilinx_xcvr_qpll_calc_lane_rate(uint32_t ref_clk_khz,
-		xcvr_qpll *qpll_config);
+uint32_t xilinx_xcvr_qpll_calc_lane_rate(xcvr_core *core,
+		uint32_t refclk_hz,
+		const struct xilinx_xcvr_qpll_config *conf,
+		uint32_t out_div);
 
 #endif
 #endif

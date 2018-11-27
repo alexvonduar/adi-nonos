@@ -111,15 +111,15 @@ int main(void)
 
 	// SPI configuration
 
-	ad9517_param.spi_init.chip_select = 0xe;
+	ad9517_param.spi_init.chip_select = SPI_CHIP_SELECT(0);
 	ad9517_param.spi_init.cpha = 0;
 	ad9517_param.spi_init.cpol = 0;
 	ad9517_param.spi_init.type = ZYNQ_PS7_SPI;
-	ad9250_0_param.spi_init.chip_select = 0xe;
+	ad9250_0_param.spi_init.chip_select = SPI_CHIP_SELECT(0);
 	ad9250_0_param.spi_init.cpha = 0;
 	ad9250_0_param.spi_init.cpol = 0;
 	ad9250_0_param.spi_init.type = ZYNQ_PS7_SPI;
-	ad9250_1_param.spi_init.chip_select = 0xe;
+	ad9250_1_param.spi_init.chip_select = SPI_CHIP_SELECT(0);
 	ad9250_1_param.spi_init.cpha = 0;
 	ad9250_1_param.spi_init.cpol = 0;
 	ad9250_1_param.spi_init.type = ZYNQ_PS7_SPI;
@@ -134,7 +134,7 @@ int main(void)
 
 	ad9250_xcvr.reconfig_bypass = 0;
 	ad9250_xcvr.lane_rate_kbps = ad9250_0_param.lane_rate_kbps;
-	ad9250_xcvr.ref_clock_khz = 245760;
+	ad9250_xcvr.ref_rate_khz = 245760;
 
 	ad9250_jesd204.scramble_enable = 1;
 	ad9250_jesd204.octets_per_frame = 1;

@@ -77,7 +77,7 @@ int main(void)
 
 	// SPI configuration
 
-	ad9526_spi_param.chip_select = 0x6;
+	ad9526_spi_param.chip_select = SPI_CHIP_SELECT(0);
 	ad9526_spi_param.cpha = 0;
 	ad9526_spi_param.cpol = 0;
 	ad9526_spi_param.type = ZYNQ_PS7_SPI;
@@ -95,7 +95,7 @@ int main(void)
 	xcvr_getconfig(&ad9625_xcvr);
 	ad9625_xcvr.reconfig_bypass = 0;
 	ad9625_xcvr.lane_rate_kbps = ad9625_param.lane_rate_kbps;
-	ad9625_xcvr.ref_clock_khz = 625000;
+	ad9625_xcvr.ref_rate_khz = 625000;
 
 	ad9625_jesd.scramble_enable = 1;
 	ad9625_jesd.octets_per_frame = 1;
@@ -137,9 +137,9 @@ int main(void)
 	// test the captured data
 	if(!dmac_start_transaction(ad9625_dma)) {
 		adc_ramp_test(ad9625_core,
-					  1,
-					  rx_xfer.no_of_samples / ad9625_core.no_of_channels,
-					  rx_xfer.start_address);
+			      1,
+			      rx_xfer.no_of_samples / ad9625_core.no_of_channels,
+			      rx_xfer.start_address);
 	};
 
 	// capture data with DMA

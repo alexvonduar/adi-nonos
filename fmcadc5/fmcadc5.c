@@ -91,11 +91,11 @@ int main(void)
 	gpio_desc				 *gpio_pwr_good;
 
 	/* Device initialization parameters */
-	ad9625_0_param.spi_init.chip_select = 0xe;
+	ad9625_0_param.spi_init.chip_select = SPI_CHIP_SELECT(0);
 	ad9625_0_param.spi_init.cpha = 0;
 	ad9625_0_param.spi_init.cpol = 0;
 	ad9625_0_param.spi_init.type = MICROBLAZE_SPI;
-	ad9625_1_param.spi_init.chip_select = 0xd;
+	ad9625_1_param.spi_init.chip_select = SPI_CHIP_SELECT(1);
 	ad9625_1_param.spi_init.cpha = 0;
 	ad9625_1_param.spi_init.cpol = 0;
 	ad9625_1_param.spi_init.type = MICROBLAZE_SPI;
@@ -134,10 +134,10 @@ int main(void)
 	if (!pwr_good) {
 		xil_printf("Error: GPIO Power Good NOT set.\n\r");
 		return -1;
-    }
+	}
 	gpio_set_value(gpio_rst_0, 1);
 	gpio_set_value(gpio_rst_1, 1);
-        	mdelay(100);
+	mdelay(100);
 
 	/* ADC and receive path configuration */
 	ad9625_0_param.lane_rate_kbps = 6250000;
@@ -155,12 +155,12 @@ int main(void)
 	xcvr_getconfig(&ad9625_0_xcvr);
 	ad9625_0_xcvr.reconfig_bypass = 1;
 	ad9625_0_xcvr.lane_rate_kbps = ad9625_0_param.lane_rate_kbps;
-	ad9625_0_xcvr.ref_clock_khz = 625000;
+	ad9625_0_xcvr.ref_rate_khz = 625000;
 
 	xcvr_getconfig(&ad9625_1_xcvr);
 	ad9625_1_xcvr.reconfig_bypass = 1;
 	ad9625_1_xcvr.lane_rate_kbps = ad9625_1_param.lane_rate_kbps;
-	ad9625_1_xcvr.ref_clock_khz = 625000;
+	ad9625_1_xcvr.ref_rate_khz = 625000;
 
 	ad9625_0_jesd.scramble_enable = 1;
 	ad9625_0_jesd.octets_per_frame = 1;
@@ -187,8 +187,6 @@ int main(void)
 	rx_xfer.id = 0;
 	rx_xfer.no_of_samples = 32768;
 
-	ad_platform_init();
-
 	/* Set up the device */
 	ad9625_setup(&ad9625_0_device, ad9625_0_param);
 	ad9625_setup(&ad9625_1_device, ad9625_1_param);
@@ -198,6 +196,7 @@ int main(void)
 	i5g_init_param.ad9625_cs_0 = 1;
 	i5g_init_param.ad9625_cs_1 = 2;
 	i5g_init_param.regs = XPAR_AXI_FMCADC5_SYNC_BASEADDR;
+	i5g_init_param.sysref_delay = 0;
 
 	/* Set up the JESD core */
 	jesd_setup(&ad9625_0_jesd);
@@ -260,8 +259,6 @@ int main(void)
 	gpio_remove(gpio_pwr_good);
 
 	i5g_remove(i5g_core);
-
-	ad_platform_close();
 
 	printf("Done\n");
 

@@ -2,7 +2,7 @@
  * @file xcvr.c
  * @brief Implementation of xcvr Driver.
  * @author DBogdan (dragos.bogdan@analog.com)
- ********************************************************************************
+ *******************************************************************************
  * Copyright 2016(c) Analog Devices, Inc.
  *
  * All rights reserved.
@@ -35,7 +35,7 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *******************************************************************************/
+ ******************************************************************************/
 
 /******************************************************************************/
 /***************************** Include Files **********************************/
@@ -43,23 +43,23 @@
 #include "xcvr_core.h"
 
 #ifdef ALTERA
-	#include "altera_pll_common.h"
-	#include "altera_a10_fpll.h"
-	#include "altera_a10_atx_pll.h"
-	#include "altera_a10_xcvr_channel.h"
+#include "altera_pll_common.h"
+#include "altera_a10_fpll.h"
+#include "altera_a10_atx_pll.h"
+#include "altera_a10_xcvr_channel.h"
 #endif
 
 #ifdef XILINX
-	#include "xilinx_xcvr_channel.h"
-	#include "xilinx_qpll.h"
+#include "xilinx_xcvr_channel.h"
+#include "xilinx_qpll.h"
 #endif
 
 /***************************************************************************//**
  * @brief xcvr_read
- *******************************************************************************/
+ ******************************************************************************/
 int32_t xcvr_read(xcvr_core *core,
-		uint32_t reg_addr,
-		uint32_t *reg_data)
+		  uint32_t reg_addr,
+		  uint32_t *reg_data)
 {
 	*reg_data = ad_reg_read((core->base_address + reg_addr));
 
@@ -68,10 +68,10 @@ int32_t xcvr_read(xcvr_core *core,
 
 /***************************************************************************//**
  * @brief xcvr_write
- *******************************************************************************/
+ ******************************************************************************/
 int32_t xcvr_write(xcvr_core *core,
-		uint32_t reg_addr,
-		uint32_t reg_data)
+		   uint32_t reg_addr,
+		   uint32_t reg_data)
 {
 	ad_reg_write((core->base_address + reg_addr), reg_data);
 
@@ -81,89 +81,114 @@ int32_t xcvr_write(xcvr_core *core,
 #ifdef XILINX
 
 /***************************************************************************//**
- * @brief xcvr_drp_read Dynamic reconfiguration port read access for Xilinx devices
- *******************************************************************************/
-int32_t xcvr_drp_read(xcvr_core *core, uint8_t drp_sel,
-				uint32_t drp_addr,
-				uint32_t *drp_data)
+ * @brief xcvr_drp_wait_idle
+ ******************************************************************************/
+int32_t xcvr_drp_wait_idle(xcvr_core *core,
+			   uint32_t drp_addr)
 {
-	uint32_t timeout = 20;
-	uint32_t val = 0;
-
-	xcvr_write(core, drp_sel ? XCVR_REG_CH_SEL : XCVR_REG_CM_SEL, XCVR_BROADCAST);
-
-	xcvr_write(core, drp_sel ? XCVR_REG_CH_CONTROL : XCVR_REG_CM_CONTROL,
-				 XCVR_CM_ADDR(drp_addr));
+	uint32_t val;
+	int32_t timeout = 20;
 
 	do {
-		xcvr_read(core, drp_sel ? XCVR_REG_CH_STATUS : XCVR_REG_CM_STATUS, &val);
-		if (val & (drp_sel ? XCVR_CH_BUSY : XCVR_CM_BUSY)) {
-			mdelay(1);
-			continue;
-		}
+		xcvr_read(core, XCVR_REG_DRP_STATUS(drp_addr), &val);
+		if (!(val & XCVR_DRP_STATUS_BUSY))
+			return XCVR_DRP_STATUS_RDATA(val);
 
-		*drp_data = drp_sel ? XCVR_CH_RDATA(val) : XCVR_CM_RDATA(val);
-		return 0;
+		mdelay(1);
 	} while (timeout--);
 
-	xil_printf("%s: Timeout!\n", __func__);
+	printf("%s: Timeout!", __func__);
+
 	return -1;
 }
 
 /***************************************************************************//**
- * @brief xcvr_drp_write Dynamic reconfiguration port write access for Xilinx devices
- *******************************************************************************/
-int32_t xcvr_drp_write(xcvr_core *core, uint8_t drp_sel,
-				uint32_t drp_addr,
-				uint32_t drp_data)
+ * @brief xilinx_xcvr_drp_read Dynamic reconfiguration port read access for
+ * 		  Xilinx devices
+ ******************************************************************************/
+int32_t xilinx_xcvr_drp_read(xcvr_core *core,
+			     uint32_t drp_port,
+			     uint32_t reg)
 {
-	uint32_t timeout = 20;
-	uint32_t val = 0;
+	uint32_t drp_sel = XCVR_DRP_PORT_CHANNEL_BCAST;
+	uint32_t drp_addr;
+	int32_t ret;
 
-	xcvr_write(core, drp_sel ? XCVR_REG_CH_SEL : XCVR_REG_CM_SEL, XCVR_BROADCAST);
+	if (drp_port == XCVR_DRP_PORT_COMMON) {
+		drp_addr = XCVR_DRP_PORT_ADDR_COMMON;
+	} else {
+		drp_addr = XCVR_DRP_PORT_ADDR_CHANNEL;
+		if (drp_port != XCVR_DRP_PORT_CHANNEL_BCAST)
+			drp_sel = drp_port - 1;
+	}
 
-	xcvr_write(core, drp_sel ? XCVR_REG_CH_CONTROL : XCVR_REG_CM_CONTROL,
-			drp_sel ? (XCVR_CH_WR | XCVR_CH_ADDR(drp_addr) | XCVR_CH_WDATA(drp_data)) :
-			(XCVR_CM_WR | XCVR_CM_ADDR(drp_addr) | XCVR_CM_WDATA(drp_data)));
+	xcvr_write(core, XCVR_REG_DRP_SEL(drp_addr), drp_sel);
+	xcvr_write(core, XCVR_REG_DRP_CTRL(drp_addr), XCVR_DRP_CTRL_ADDR(reg));
 
-	do {
-		xcvr_read(core, drp_sel ? XCVR_REG_CH_STATUS : XCVR_REG_CM_STATUS, &val);
-		if (val & (drp_sel ? XCVR_CH_BUSY : XCVR_CM_BUSY)) {
-			mdelay(1);
-			continue;
-		}
+	ret = xcvr_drp_wait_idle(core, drp_addr);
+	if (ret < 0)
+		return ret;
 
-		return 0;
-	} while (timeout--);
+	return ret & 0xffff;
+}
 
-	xil_printf("%s: Timeout!\n", __func__);
-	return -1;
+/***************************************************************************//**
+ * @brief xilinx_xcvr_drp_write Dynamic reconfiguration port write access for
+ * 		  Xilinx devices
+ ******************************************************************************/
+int32_t xilinx_xcvr_drp_write(xcvr_core *core,
+			      uint32_t drp_port,
+			      uint32_t reg,
+			      uint32_t val)
+{
+	uint32_t drp_sel = XCVR_DRP_PORT_CHANNEL_BCAST;
+	uint32_t drp_addr;
+	int32_t ret;
+
+	if (drp_port == XCVR_DRP_PORT_COMMON) {
+		drp_addr = XCVR_DRP_PORT_ADDR_COMMON;
+	} else {
+		drp_addr = XCVR_DRP_PORT_ADDR_CHANNEL;
+		if (drp_port != XCVR_DRP_PORT_CHANNEL_BCAST)
+			drp_sel = drp_port - 1;
+	}
+
+	xcvr_write(core, XCVR_REG_DRP_SEL(drp_addr), drp_sel);
+	xcvr_write(core, XCVR_REG_DRP_CTRL(drp_addr), (XCVR_DRP_CTRL_WR |
+			XCVR_DRP_CTRL_ADDR(reg) | XCVR_DRP_CTRL_WDATA(val)));
+
+	ret = xcvr_drp_wait_idle(core, drp_addr);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 /***************************************************************************//**
  * @brief xcvr_drp_update Dynamic reconfiguration port access for Xilinx devices
- *******************************************************************************/
-int32_t xcvr_drp_update(xcvr_core *core, uint8_t drp_sel,
-					uint32_t drp_addr,
-					uint32_t mask,
-					uint32_t val)
+ ******************************************************************************/
+int32_t xcvr_drp_update(xcvr_core *core,
+			uint32_t drp_port,
+			uint32_t reg,
+			uint32_t mask,
+			uint32_t val)
 {
-	uint32_t ret;
+	int32_t ret;
 
-	xcvr_drp_read(core, drp_sel, drp_addr, &ret);
+	ret = xilinx_xcvr_drp_read(core, drp_port, reg);
 	if (ret < 0)
 		return ret;
 
 	val |= ret & ~mask;
 
-	return xcvr_drp_write(core, drp_sel, drp_addr, val);
+	return xilinx_xcvr_drp_write(core, drp_port, reg, val);
 }
 
 #endif
 
 /*******************************************************************************
  * @brief xcvr_setup
- *******************************************************************************/
+ ******************************************************************************/
 int32_t xcvr_setup(xcvr_core *core)
 {
 	int32_t ret = 0;
@@ -177,17 +202,21 @@ int32_t xcvr_setup(xcvr_core *core)
 
 	link_clock = (uint32_t)(core->lane_rate_kbps / 40);
 	link_clock = fpll_round_rate(link_clock, core->ref_clock_khz);
-	ret |= fpll_set_rate(&(core->dev.link_pll), link_clock, core->ref_clock_khz);
+	ret |= fpll_set_rate(&(core->dev.link_pll),
+			     link_clock,
+			     core->ref_clock_khz);
 
 	core->link_clk_khz = link_clock;
 
-	if (core->rx_tx_n){
+	if (core->rx_tx_n) {
 		lane_rate = altera_a10_cdr_pll_round_rate(core->lane_rate_kbps,
-			core->ref_clock_khz);
-		ret |= altera_a10_cdr_pll_set_rate(core, lane_rate, core->ref_clock_khz);
+				core->ref_clock_khz);
+		ret |= altera_a10_cdr_pll_set_rate(core,
+						   lane_rate,
+						   core->ref_clock_khz);
 	} else {
 		lane_rate = atx_pll_round_rate(core->lane_rate_kbps,
-			core->ref_clock_khz);
+					       core->ref_clock_khz);
 		ret |= atx_pll_set_rate(core, lane_rate, core->ref_clock_khz);
 		altera_a10_calib_tx_pll(core);
 	}
@@ -203,43 +232,48 @@ int32_t xcvr_setup(xcvr_core *core)
 	uint32_t rx_out_div;
 	uint32_t tx_out_div;
 	uint32_t ln_rate_kbps;
-	xcvr_cpll cpll_config;
-	xcvr_qpll qpll_config;
+	struct xilinx_xcvr_cpll_config cpll_config;
+	struct xilinx_xcvr_qpll_config qpll_config;
 
 	xcvr_write(core, XCVR_REG_RESETN, 0);  // enter reset state
 
-	if (core->reconfig_bypass == 0)
-	{
-		if (core->lane_rate_kbps > 12500000){
+	if (core->reconfig_bypass == 0) {
+		if (core->lane_rate_kbps > 12500000) {
 			printf("ERROR: Max qpll lane_rate: %d", 12500000);
 			return -1;
 		}
-		if (core->lane_rate_kbps < 1250000){
+		if (core->lane_rate_kbps < 1250000) {
 			printf("ERROR: Min cpll lane_rate: %d", 1250000);
 			return -1;
 		}
 
-		if (core->dev.qpll_enable) {
+		if (core->dev.cpll_enable == 0) {
 			printf("\nQPLL ENABLE\n");
-			ret |= xilinx_xcvr_calc_qpll_config(core->ref_clock_khz,
-					core->lane_rate_kbps, &qpll_config);
-			out_div = qpll_config.out_div;
+			ret |= xilinx_xcvr_calc_qpll_config(core, core->ref_rate_khz,
+							    core->lane_rate_kbps, &qpll_config,
+							    &core->dev.out_div);
+			out_div = core->dev.out_div;
 
-			ln_rate_kbps = xilinx_xcvr_qpll_calc_lane_rate(
-					core->ref_clock_khz, &qpll_config);
+			ln_rate_kbps = xilinx_xcvr_qpll_calc_lane_rate(core,
+					core->ref_rate_khz, &qpll_config, out_div);
 
-			xilinx_xcvr_qpll_write_config(core, &qpll_config);
+			xilinx_xcvr_qpll_write_config(core,
+						      XCVR_DRP_PORT_COMMON,
+						      &qpll_config);
 			local_sys_clk_sel = 0x3;
 		} else {
 			printf("\nCPLL ENABLE\n");
-			ret |= xilinx_xcvr_calc_cpll_config(core->ref_clock_khz,
-					core->lane_rate_kbps, &cpll_config);
-			out_div = cpll_config.out_div;
+			ret |= xilinx_xcvr_calc_cpll_config(core, core->ref_rate_khz,
+							    core->lane_rate_kbps, &cpll_config,
+							    &core->dev.out_div);
+			out_div = core->dev.out_div;
 
-			ln_rate_kbps = xilinx_xcvr_cpll_calc_lane_rate(
-					core->ref_clock_khz, &cpll_config);
+			ln_rate_kbps = xilinx_xcvr_cpll_calc_lane_rate(core,
+					core->ref_rate_khz, &cpll_config, out_div);
 
-			xilinx_xcvr_cpll_write_config(core, &cpll_config);
+			xilinx_xcvr_cpll_write_config(core,
+						      XCVR_DRP_PORT_CHANNEL_BCAST,
+						      &cpll_config);
 			local_sys_clk_sel = 0;
 		}
 
@@ -247,37 +281,48 @@ int32_t xcvr_setup(xcvr_core *core)
 		if ((ln_rate_kbps == 0) || (ln_rate_kbps != core->lane_rate_kbps)) {
 			printf("%s: Faild to set line rate!",__func__);
 			printf("Desired rate: %lu, obtained rate: %lu\n",
-				core->lane_rate_kbps, ln_rate_kbps);
+			       core->lane_rate_kbps, ln_rate_kbps);
 			return -1;
 		}
 
 		core->dev.sys_clk_sel = local_sys_clk_sel;
 
-		xilinx_xcvr_read_out_div(core, &rx_out_div, &tx_out_div);
+		xilinx_xcvr_read_out_div(core,
+					 XCVR_DRP_PORT_COMMON,
+					 &rx_out_div,
+					 &tx_out_div);
 
 		if (core->rx_tx_n) {
-			xilinx_xcvr_configure_lpm_dfe_mode(core, core->dev.lpm_enable);
-			xilinx_xcvr_configure_cdr(core, core->lane_rate_kbps,
-				out_div, core->dev.lpm_enable);
+			xilinx_xcvr_configure_lpm_dfe_mode(core,
+							   XCVR_DRP_PORT_COMMON,
+							   core->dev.lpm_enable);
+			xilinx_xcvr_configure_cdr(core,
+						  XCVR_DRP_PORT_COMMON,
+						  core->lane_rate_kbps,
+						  out_div,
+						  core->dev.lpm_enable);
 			rx_out_div = out_div;
 		} else {
 			tx_out_div = out_div;
 		}
 
 		core->dev.out_div = out_div;
-		xilinx_xcvr_write_out_div(core, rx_out_div, tx_out_div);
+		xilinx_xcvr_write_out_div(core,
+					  XCVR_DRP_PORT_COMMON,
+					  rx_out_div,
+					  tx_out_div);
 
-		xcvr_write(core, XCVR_REG_CONTROL, (core->dev.lpm_enable ? XCVR_LPM_DFE_N : 0) |
-							XCVR_SYSCLK_SEL(core->dev.sys_clk_sel) |
-							XCVR_OUTCLK_SEL(core->dev.out_clk_sel));
+		xcvr_write(core, XCVR_REG_CONTROL,
+			   (core->dev.lpm_enable ? XCVR_LPM_DFE_N : 0) |
+			   XCVR_SYSCLK_SEL(core->dev.sys_clk_sel) |
+			   XCVR_OUTCLK_SEL(core->dev.out_clk_sel));
 
 	}
 
 	xcvr_write(core, XCVR_REG_RESETN, XCVR_RESETN);
 
 	timeout = 100;
-	while (timeout > 0)
-	{
+	while (timeout > 0) {
 		mdelay(1);
 		timeout = timeout - 1;
 		xcvr_read(core, XCVR_REG_STATUS, &status);
@@ -285,8 +330,7 @@ int32_t xcvr_setup(xcvr_core *core)
 			break;
 	}
 
-	if (status == 0)
-	{
+	if (status == 0) {
 		printf("%s ERROR: XCVR initialization failed!\n", __func__);
 		return(-1);
 	}
@@ -297,18 +341,20 @@ int32_t xcvr_setup(xcvr_core *core)
 
 /*******************************************************************************
  * @brief xcvr_getconfig
- *******************************************************************************/
+ ******************************************************************************/
 int32_t xcvr_getconfig(xcvr_core *core)
 {
 	uint32_t regbuf;
 
-	xcvr_read(core, XCVR_REG_PARAMS, &regbuf);
-	core->lanes_per_link = (regbuf & XCVR_NUM_OF_LANES_MASK) >> XCVR_NUM_OF_LANES_OFFSET;
-	core->rx_tx_n = ((regbuf & XCVR_TX_OR_RXN_MASK) >> XCVR_TX_OR_RXN_OFFSET) ? 0 : 1;
+	xcvr_read(core, XCVR_REG_SYNTH, &regbuf);
+	core->num_lanes = (regbuf & XCVR_NUM_OF_LANES_MASK) >>
+			  XCVR_NUM_OF_LANES_OFFSET;
+	core->rx_tx_n = ((regbuf & XCVR_TX_OR_RXN_MASK) >> XCVR_TX_OR_RXN_OFFSET);
 
 #ifdef XILINX
-	core->dev.gt_type = (regbuf & XCVR_GT_TYPE_MASK) >> XCVR_GT_TYPE_OFFSET;
-	core->dev.qpll_enable = (regbuf & XCVR_QPLL_ENABLE_MASK) >> XCVR_QPLL_ENABLE_OFFSET;
+	core->dev.type = (regbuf & XCVR_GT_TYPE_MASK) >> XCVR_GT_TYPE_OFFSET;
+	core->dev.cpll_enable = ((regbuf & XCVR_QPLL_ENABLE_MASK) >>
+				 XCVR_QPLL_ENABLE_OFFSET) ? 0 : 1;
 
 	xcvr_read(core, XCVR_REG_CONTROL, &regbuf);
 	core->dev.lpm_enable = (regbuf & (0x1 << 12)) >> 12;
@@ -326,18 +372,18 @@ int32_t xcvr_getconfig(xcvr_core *core)
 	for (int i=1; i < core->lanes_per_link; i++) {
 		core->dev.channel_pll[i].type = core->dev.channel_pll[0].type;
 		core->dev.channel_pll[i].base_address =
-				core->dev.channel_pll[0].base_address + 0x1000 * i;
+			core->dev.channel_pll[0].base_address + 0x1000 * i;
 		core->dev.channel_pll[i].initial_recalc =
-				core->dev.channel_pll[0].initial_recalc;
+			core->dev.channel_pll[0].initial_recalc;
 	}
 #endif
 
-return 0;
+	return 0;
 }
 
 /*******************************************************************************
  * @brief xcvr_reset
- *******************************************************************************/
+ ******************************************************************************/
 int32_t xcvr_reset(xcvr_core *core)
 {
 	uint32_t status;
@@ -348,8 +394,7 @@ int32_t xcvr_reset(xcvr_core *core)
 	xcvr_write(core, XCVR_REG_RESETN, XCVR_RESETN);
 
 	timeout = 100;
-	while (timeout > 0)
-	{
+	while (timeout > 0) {
 		mdelay(1);
 		timeout = timeout - 1;
 		xcvr_read(core, XCVR_REG_STATUS, &status);
@@ -357,8 +402,7 @@ int32_t xcvr_reset(xcvr_core *core)
 			break;
 	}
 
-	if (status == 0)
-	{
+	if (status == 0) {
 		printf("%s ERROR: XCVR initialization failed!\n", __func__);
 		return(-1);
 	}
@@ -370,7 +414,7 @@ int32_t xcvr_reset(xcvr_core *core)
 
 /*******************************************************************************
  * @brief xcvr_finalize_lane_rate_change
- *******************************************************************************/
+ ******************************************************************************/
 void xcvr_finalize_lane_rate_change(xcvr_core *core)
 {
 	uint32_t status;
@@ -394,7 +438,7 @@ void xcvr_finalize_lane_rate_change(xcvr_core *core)
 			((status & XCVR_STATUS2_XCVR(core->lanes_per_link)) ? "" : "not"));
 		for (i = 0; i < core->lanes_per_link; i++) {
 			printf("\tLane %d transceiver %s ready\n", i, \
-				((status & XCVR_STATUS2_XCVR(i)) ?"" : "not"));
+			       ((status & XCVR_STATUS2_XCVR(i)) ?"" : "not"));
 		}
 	}
 }

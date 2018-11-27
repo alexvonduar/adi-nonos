@@ -104,13 +104,13 @@ int main(void)
 #ifdef ALTERA
 	ad9152_xcvr.base_address = AD9152_JESD204_LINK_MANAGEMENT_BASE;
 	ad9152_xcvr.dev.link_pll.base_address =
-			AD9152_JESD204_LINK_PLL_RECONFIG_BASE;
+		AD9152_JESD204_LINK_PLL_RECONFIG_BASE;
 	ad9152_xcvr.dev.atx_pll.base_address =
-			AD9152_JESD204_LANE_PLL_RECONFIG_BASE;
+		AD9152_JESD204_LANE_PLL_RECONFIG_BASE;
 	ad9152_core.base_address = AXI_AD9152_CORE_BASE;
 	AD9680_XCVR.BASE_ADDRESS = AD9680_JESD204_LINK_MANAGEMENT_BASE;
 	ad9680_xcvr.dev.link_pll.base_address =
-			AD9680_JESD204_LINK_PLL_RECONFIG_BASE;
+		AD9680_JESD204_LINK_PLL_RECONFIG_BASE;
 	ad9680_core.base_address = AXI_AD9680_CORE_BASE;
 	ad9152_jesd.base_address = AD9152_JESD204_LINK_RECONFIG_BASE;
 	ad9680_jesd.base_address = AD9680_JESD204_LINK_RECONFIG_BASE;
@@ -125,13 +125,29 @@ int main(void)
 	rx_xfer.start_address =  0x800000;
 	tx_xfer.start_address =  0x900000;;
 #endif
-
+#ifdef ZYNQ_PS7
 	ad9528_spi_param.type = ZYNQ_PS7_SPI;
 	ad9152_spi_param.type = ZYNQ_PS7_SPI;
 	ad9680_spi_param.type = ZYNQ_PS7_SPI;
-	ad9528_spi_param.chip_select = 0x6;
-	ad9152_spi_param.chip_select = 0x5;
-	ad9680_spi_param.chip_select = 0x3;
+#endif
+#ifdef ZYNQ_PSU
+	ad9528_spi_param.type = ZYNQ_PSU_SPI;
+	ad9152_spi_param.type = ZYNQ_PSU_SPI;
+	ad9680_spi_param.type = ZYNQ_PSU_SPI;
+#endif
+#ifdef MICROBLAZE
+	ad9528_spi_param.type = MICROBLAZE_SPI;
+	ad9152_spi_param.type = MICROBLAZE_SPI;
+	ad9680_spi_param.type = MICROBLAZE_SPI;
+#endif
+#ifdef NIOS_II
+	ad9528_spi_param.type = NIOS_II_SPI;
+	ad9152_spi_param.type = NIOS_II_SPI;
+	ad9680_spi_param.type = NIOS_II_SPI;
+#endif
+	ad9528_spi_param.chip_select = SPI_CHIP_SELECT(0);
+	ad9152_spi_param.chip_select = SPI_CHIP_SELECT(1);
+	ad9680_spi_param.chip_select = SPI_CHIP_SELECT(2);
 	ad9528_spi_param.cpha = 0;
 	ad9152_spi_param.cpha = 0;
 	ad9680_spi_param.cpha = 0;
@@ -201,10 +217,10 @@ int main(void)
 	// dac settings
 	xcvr_getconfig(&ad9152_xcvr);
 	ad9152_xcvr.reconfig_bypass = 0;
-	ad9152_xcvr.ref_clock_khz = 616500;
+	ad9152_xcvr.ref_rate_khz = 616500;
 	ad9152_xcvr.lane_rate_kbps = 12330000;
 #ifdef XILINX
-	ad9152_xcvr.dev.qpll_enable = 1;
+	ad9152_xcvr.dev.cpll_enable = 0;
 #endif
 
 	ad9152_jesd.rx_tx_n = 0;
@@ -231,21 +247,21 @@ int main(void)
 	ad9152_core.channels = &ad9152_channels[0];
 
 	ad9152_param.stpl_samples[0][0] =
-			(ad9152_channels[0].pat_data >> 0)  & 0xffff;
+		(ad9152_channels[0].pat_data >> 0)  & 0xffff;
 	ad9152_param.stpl_samples[0][1] =
-			(ad9152_channels[0].pat_data >> 16) & 0xffff;
+		(ad9152_channels[0].pat_data >> 16) & 0xffff;
 	ad9152_param.stpl_samples[0][2] =
-			(ad9152_channels[0].pat_data >> 0)  & 0xffff;
+		(ad9152_channels[0].pat_data >> 0)  & 0xffff;
 	ad9152_param.stpl_samples[0][3] =
-			(ad9152_channels[0].pat_data >> 16) & 0xffff;
+		(ad9152_channels[0].pat_data >> 16) & 0xffff;
 	ad9152_param.stpl_samples[1][0] =
-			(ad9152_channels[1].pat_data >> 0)  & 0xffff;
+		(ad9152_channels[1].pat_data >> 0)  & 0xffff;
 	ad9152_param.stpl_samples[1][1] =
-			(ad9152_channels[1].pat_data >> 16) & 0xffff;
+		(ad9152_channels[1].pat_data >> 16) & 0xffff;
 	ad9152_param.stpl_samples[1][2] =
-			(ad9152_channels[1].pat_data >> 0)  & 0xffff;
+		(ad9152_channels[1].pat_data >> 0)  & 0xffff;
 	ad9152_param.stpl_samples[1][3] =
-			(ad9152_channels[1].pat_data >> 16) & 0xffff;
+		(ad9152_channels[1].pat_data >> 16) & 0xffff;
 	ad9152_param.interpolation = 1;
 	ad9152_param.lane_rate_kbps = 12330000;
 
@@ -255,10 +271,10 @@ int main(void)
 
 	xcvr_getconfig(&ad9680_xcvr);
 	ad9680_xcvr.reconfig_bypass = 0;
-	ad9680_xcvr.ref_clock_khz = 616500;
+	ad9680_xcvr.ref_rate_khz = 616500;
 	ad9680_xcvr.lane_rate_kbps = 12330000;
 #ifdef XILINX
-	ad9680_xcvr.dev.qpll_enable = 1;
+	ad9680_xcvr.dev.cpll_enable = 0;
 #endif
 
 	ad9680_jesd.rx_tx_n = 1;
@@ -270,7 +286,7 @@ int main(void)
 	ad9680_core.no_of_channels = 2;
 	ad9680_core.resolution = 14;
 
-        // receiver DMA configuration
+	// receiver DMA configuration
 
 #ifdef ZYNQ
 	rx_xfer.start_address = XPAR_DDR_MEM_BASEADDR + 0x800000;
@@ -292,16 +308,20 @@ int main(void)
 	gpio_get(&dac_txen, GPIO_DAC_TXEN);
 	gpio_get(&adc_pd, GPIO_ADC_PD);
 
-	ad_platform_init();
 	gpio_set_value(dac_txen, 0x1);
 	gpio_set_value(adc_pd, 0x0);
 
 	ad9528_setup(&ad9528_device, ad9528_param);
 
-	ad9152_setup(&ad9152_device, ad9152_param);
+	// Recommended DAC JESD204 link startup sequence
+	//   1. FPGA JESD204 Link Layer
+	//   2. FPGA JESD204 PHY Layer
+	//   3. DAC
 
 	jesd_setup(&ad9152_jesd);
 	xcvr_setup(&ad9152_xcvr);
+	ad9152_setup(&ad9152_device, ad9152_param);
+
 	axi_jesd204_tx_status_read(&ad9152_jesd);
 	dac_setup(&ad9152_core);
 	ad9152_status(ad9152_device);
@@ -349,19 +369,17 @@ int main(void)
 	ad9680_test(ad9680_device, AD9680_TEST_OFF);
 	ad_printf("daq3: setup and configuration is done\n");
 
-        // capture data with DMA
+	// capture data with DMA
 
-	if(!dmac_start_transaction(ad9680_dma)){
+	if(!dmac_start_transaction(ad9680_dma)) {
 		ad_printf("daq3: RX capture done.\n");
-        };
+	};
 
 	ad9528_remove(ad9528_device);
 	ad9152_remove(ad9152_device);
 	ad9680_remove(ad9680_device);
 	gpio_remove(dac_txen);
 	gpio_remove(adc_pd);
-
-	ad_platform_close();
 
 	return(0);
 }

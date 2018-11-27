@@ -130,8 +130,8 @@ static int32_t ad6676_set_splitreg(struct ad6676_dev *dev,
  * @return 0 in case of success, negative error code otherwise.
 *******************************************************************************/
 static inline int32_t ad6676_get_splitreg(struct ad6676_dev *dev,
-					  uint32_t reg,
-					  uint32_t *val)
+		uint32_t reg,
+		uint32_t *val)
 {
 	int32_t ret;
 	uint8_t reg_data;
@@ -163,7 +163,7 @@ static int32_t ad6676_set_fadc(struct ad6676_dev *dev,
 			       uint32_t val)
 {
 	return ad6676_set_splitreg(dev, AD6676_FADC_0,
-			clamp_t(uint32_t, val, MIN_FADC, MAX_FADC) / MHz);
+				   clamp_t(uint32_t, val, MIN_FADC, MAX_FADC) / MHz);
 }
 
 /***************************************************************************//**
@@ -196,7 +196,7 @@ int32_t ad6676_set_fif(struct ad6676_dev *dev,
 		       struct ad6676_init_param *init_param)
 {
 	return ad6676_set_splitreg(dev, AD6676_FIF_0,
-		clamp_t(uint32_t, init_param->f_if_hz, MIN_FIF, MAX_FIF) / MHz);
+				   clamp_t(uint32_t, init_param->f_if_hz, MIN_FIF, MAX_FIF) / MHz);
 }
 
 /***************************************************************************//**
@@ -237,7 +237,7 @@ static int32_t ad6676_set_bw(struct ad6676_dev *dev,
 			     uint32_t val)
 {
 	return ad6676_set_splitreg(dev, AD6676_BW_0,
-		clamp_t(uint32_t, val, MIN_BW, MAX_BW) / MHz);
+				   clamp_t(uint32_t, val, MIN_BW, MAX_BW) / MHz);
 }
 
 /***************************************************************************//**
@@ -341,12 +341,14 @@ static int32_t ad6676_set_clk_synth(struct ad6676_dev *dev,
 		return ret;
 
 	/* Compute I_CP val */
-
-	reg_val = (f_pfd / MHz) * (freq / MHz) * (freq / MHz);
-	val64 = 13300000000ULL + reg_val / 2;
-	do_div(&val64, reg_val);
-	reg_val = min_t(uint64_t, 64U, val64 - 1);
-
+	if(freq == MAX_FADC) {
+		reg_val = 0x12;
+	} else {
+		reg_val = (f_pfd / MHz) * (freq / MHz) * (freq / MHz);
+		val64 = 13300000000ULL + reg_val / 2;
+		do_div(&val64, reg_val);
+		reg_val = min_t(uint64_t, 64U, val64 - 1);
+	}
 	/* I_CP 2AC */
 	ret = ad6676_spi_write(dev, AD6676_CLKSYN_I_CP, reg_val);
 	if (ret < 0)
@@ -368,23 +370,31 @@ static int32_t ad6676_set_clk_synth(struct ad6676_dev *dev,
 	if (ret < 0)
 		return ret;
 
+	if(freq == MAX_FADC) {
+		ret = ad6676_spi_write(dev, AD6676_CLKSYN_KVCO_VCO, 0x2A); /* 2A9 */
+		if (ret < 0) {
+			return ret;
+		}
+	}
+
 	/* Reference Div 2BB */
 	ret = ad6676_spi_write(dev, AD6676_CLKSYN_R_DIV,
-			div_val | CLKSYN_R_DIV_RESERVED);
+			       div_val | CLKSYN_R_DIV_RESERVED | CLKSYN_R_DIV_SYSREF_CTRL |
+			       CLKSYN_R_DIV_CLKIN_IMPED);
 	if (ret < 0)
 		return ret;
 
 
 	/* Enable CLKSYN and ADC clock */
 	ret = ad6676_spi_write(dev, AD6676_CLKSYN_ENABLE, /* 2A0 */
-		EN_OVER_IDE | EN_VCO | EN_VCO_ALC |
-		EN_VCO_PTAT | EN_ADC_CK | EN_SYNTH);
+			       EN_OVER_IDE | EN_VCO | EN_VCO_ALC |
+			       EN_VCO_PTAT | EN_ADC_CK | EN_SYNTH);
 	if (ret < 0)
 		return ret;
 
 	/* Start VCO calibration */
 	ret = ad6676_spi_write(dev, AD6676_CLKSYN_VCO_CAL, /* 2AB */
-		INIT_ALC_VALUE(0xC) | 0x5);
+			       INIT_ALC_VALUE(0xC) | 0x5);
 	if (ret < 0)
 		return ret;
 
@@ -441,7 +451,7 @@ static int32_t ad6676_set_extclk_cntl(struct ad6676_dev *dev,
 
 	/* Enable EXT CLK and ADC clock */
 	ret = ad6676_spi_write(dev, AD6676_CLKSYN_ENABLE, /* 2A0 */
-		EN_EXT_CK | EN_ADC_CK);
+			       EN_EXT_CK | EN_ADC_CK);
 	if (ret < 0)
 		return ret;
 
@@ -464,12 +474,12 @@ static int32_t ad6676_jesd_setup(struct ad6676_dev *dev,
 
 	// sysref power down
 	ret = ad6676_spi_write(dev, AD6676_SYNCB_CTRL,
-		(init_param->sysref_pd ? PD_SYSREF_RX : 0) |
-		(init_param->lvds_syncb ? LVDS_SYNCB : 0)); // lvds sync_n
+			       (init_param->sysref_pd ? PD_SYSREF_RX : 0) |
+			       (init_param->lvds_syncb ? LVDS_SYNCB : 0)); // lvds sync_n
 	ret |= ad6676_spi_write(dev, AD6676_DID, 0x01); // device id
 	ret |= ad6676_spi_write(dev, AD6676_BID, 0x05); // bank id
 	ret |= ad6676_spi_write(dev, AD6676_L, (init_param->n_lanes - 1) |
-		(init_param->scrambling_en ? SCR : 0)); // scrambling, 2 lanes
+				(init_param->scrambling_en ? SCR : 0)); // scrambling, 2 lanes
 	ret |= ad6676_spi_write(dev, AD6676_F, 0x01); // 2 bytes/frame
 	ret |= ad6676_spi_write(dev, AD6676_K, init_param->
 				frames_per_multiframe - 1);
@@ -566,8 +576,8 @@ static int32_t ad6676_reset(struct ad6676_dev *dev,
 	int32_t ret;
 
 	ret = ad6676_spi_write(dev, AD6676_SPI_CONFIG,
-				   SPI_CONF_SW_RESET |
-				   (spi3wire ? 0 : SPI_CONF_SDIO_DIR));
+			       SPI_CONF_SW_RESET |
+			       (spi3wire ? 0 : SPI_CONF_SDIO_DIR));
 	mdelay(2);
 
 	return ret;
@@ -607,9 +617,9 @@ int32_t ad6676_set_attenuation(struct ad6676_dev *dev,
 {
 	init_param->attenuation = clamp(init_param->attenuation, 0, 27);
 	ad6676_spi_write(dev, AD6676_ATTEN_VALUE_PIN0,
-			init_param->attenuation);
+			 init_param->attenuation);
 	ad6676_spi_write(dev, AD6676_ATTEN_VALUE_PIN1,
-			init_param->attenuation);
+			 init_param->attenuation);
 
 	return 0;
 }
@@ -735,7 +745,7 @@ int32_t ad6676_update(struct ad6676_dev *dev,
 
 	init_param->bw_hz = clamp_t(uint32_t, init_param->bw_hz,
 				    init_param->f_adc_hz / 200,
-			     init_param->f_adc_hz / 20);
+				    init_param->f_adc_hz / 20);
 
 	init_param->f_if_hz = clamp_t(uint32_t,
 				      init_param->f_if_hz,
